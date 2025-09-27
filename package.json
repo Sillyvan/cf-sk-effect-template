@@ -4,17 +4,28 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
+    "preview": "turbo run preview",
+    "deploy": "turbo run deploy",
     "lint": "turbo run lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "check-types": "turbo run check-types"
+    "format": "prettier --write \"**/*.{ts,md,svelte}\"",
+    "check": "turbo run check",
+    "check-types": "turbo run check-types",
+    "cf-typegen": "turbo run cf-typegen"
   },
   "devDependencies": {
-    "prettier": "^3.6.2",
     "turbo": "^2.5.8",
     "typescript": "5.9.2"
   },
-  "packageManager": "pnpm@9.0.0",
+  "packageManager": "pnpm@10.0.0",
   "engines": {
-    "node": ">=18"
+    "node": ">=24"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "dependencies": {
+    "effect": "catalog:"
   }
 }

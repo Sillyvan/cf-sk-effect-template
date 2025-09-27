@@ -4,18 +4,35 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": [".next/**", "!.next/cache/**"]
-    },
-    "lint": {
-      "dependsOn": ["^lint"]
-    },
-    "check-types": {
-      "dependsOn": ["^check-types"]
+      "inputs": ["$TURBO_DEFAULT$", ".env*", "svelte.config.js", "vite.config.ts", "wrangler.jsonc"],
+      "outputs": [".svelte-kit/**", "dist/**", "build/**"]
     },
     "dev": {
       "cache": false,
       "persistent": true
+    },
+    "lint": {
+      "dependsOn": ["^lint"]
+    },
+    "check": {
+      "dependsOn": ["^check"],
+      "inputs": ["$TURBO_DEFAULT$", "svelte.config.js", "tsconfig.json", "src/**/*.ts", "src/**/*.svelte"]
+    },
+    "check-types": {
+      "dependsOn": ["^check-types"]
+    },
+    "preview": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "persistent": true
+    },
+    "deploy": {
+      "dependsOn": ["build"],
+      "inputs": ["$TURBO_DEFAULT$", ".svelte-kit/**", "wrangler.jsonc", ".env*"]
+    },
+    "cf-typegen": {
+      "inputs": ["wrangler.jsonc", ".env*"],
+      "outputs": ["src/worker-configuration.d.ts"]
     }
   }
 }
