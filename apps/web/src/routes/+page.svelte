@@ -2,7 +2,6 @@
 	import { toast } from 'svelte-sonner';
 	import { queryTest } from './query.remote';
 	import { loadItems } from './load.remote';
-	import type { QueryResult } from '$lib/types';
 	import { commandTest } from './command.remote';
 	import { formTest, formValueTest } from './form.remote';
 
@@ -16,31 +15,31 @@
 		items = { ...newItems, items: [...items.items, ...newItems.items] };
 	}
 
-	let queryResult = $state<QueryResult | null>(null);
+	let queryResult = $state<ReturnType<typeof queryTest> | null>(null);
 
-	async function load() {
-		queryResult = await queryTest();
+	function load() {
+		queryResult = queryTest();
 	}
 
 	$effect(() => {
-		if (queryResult?.status === 'failed') toast.error(queryResult.message);
+		if (queryResult?.current?.status === 'failed') toast.error(queryResult.current.message);
 	});
 </script>
 
-<main class="min-h-dvh bg-slate-100 p-8">
-	<div class="mx-auto max-w-4xl space-y-8">
+<main class="min-h-dvh bg-gray-50 p-6">
+	<div class="mx-auto max-w-3xl space-y-6">
 		<!-- Load Section -->
-		<div class="rounded-lg bg-white p-6 shadow">
-			<h1 class="mb-4 text-xl font-semibold">Load</h1>
-			<div class="mb-4 space-y-2">
+		<div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+			<h1 class="mb-4 text-lg font-medium text-gray-900">Load</h1>
+			<div class="mb-4 space-y-3">
 				{#each items.items as item (item)}
-					<div class="rounded bg-slate-50 p-2">{item.name}</div>
+					<div class="rounded-lg bg-gray-50 p-3 text-sm text-gray-700">{item.name}</div>
 				{/each}
 			</div>
 			{#if items.hasMore}
 				<button
 					onclick={loadMore}
-					class="rounded bg-blue-500 px-4 py-2 font-bold text-white hover:bg-blue-700"
+					class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800"
 				>
 					Load more
 				</button>
@@ -48,47 +47,84 @@
 		</div>
 
 		<!-- Query Section -->
-		<div class="rounded-lg bg-white p-6 shadow">
-			<h1 class="mb-4 text-xl font-semibold">Query</h1>
+		<div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+			<h1 class="mb-4 text-lg font-medium text-gray-900">Query</h1>
 			<button
 				onclick={load}
-				class="mb-4 rounded bg-blue-500 px-4 py-2 font-bold text-white hover:bg-blue-700"
+				class="mb-4 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800"
+				disabled={queryResult?.loading}
 			>
 				Load
 			</button>
-			<p class="mb-2 font-medium">Result:</p>
-			<pre class="overflow-auto rounded-lg bg-gray-800 p-4 text-sm text-green-400"><code
-					>{JSON.stringify(queryResult, null, 2)}</code
-				></pre>
+			<p class="mb-3 text-sm font-medium text-gray-700">Result:</p>
+			{#if queryResult?.loading}
+				<div class="flex items-center justify-center rounded-lg border bg-gray-50 p-8">
+					<div class="flex items-center space-x-2">
+						<div
+							class="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-900"
+						></div>
+						<span class="text-sm text-gray-600">Loading...</span>
+					</div>
+				</div>
+			{:else if queryResult?.error}
+				<div class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-600">
+					Error: {queryResult.error}
+				</div>
+			{:else if queryResult?.current}
+				<pre class="overflow-auto rounded-lg border bg-gray-900 p-4 text-xs text-green-400"><code
+						>{JSON.stringify(queryResult.current, null, 2)}</code
+					></pre>
+			{:else}
+				<div class="rounded-lg border bg-gray-50 p-4 text-center text-sm text-gray-500">
+					Click "Load" to fetch data
+				</div>
+			{/if}
 		</div>
-		<div class="rounded-lg bg-white p-6 shadow">
-			<h1 class="mb-4 text-xl font-semibold">Command</h1>
+
+		<!-- Command Section -->
+		<div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+			<h1 class="mb-4 text-lg font-medium text-gray-900">Command</h1>
 			<button
-				class="mb-4 rounded bg-blue-500 px-4 py-2 font-bold text-white hover:bg-blue-700"
+				class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800"
 				onclick={() => commandTest()}
 			>
-				Command
+				Execute Command
 			</button>
 		</div>
-		<div class="rounded-lg bg-white p-6 shadow">
-			<h1 class="mb-4 text-xl font-semibold">Form</h1>
-			<p class="mb-2 font-medium">Result:</p>
-			<pre class="overflow-auto rounded-lg bg-gray-800 p-4 text-sm text-green-400"><code
+
+		<!-- Form Section -->
+		<div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+			<h1 class="mb-4 text-lg font-medium text-gray-900">Form</h1>
+			<p class="mb-3 text-sm font-medium text-gray-700">Result:</p>
+			<pre class="mb-6 overflow-auto rounded-lg border bg-gray-900 p-4 text-xs text-green-400"><code
 					>{JSON.stringify(await formValueTest(), null, 2)}</code
 				></pre>
 
-			<form {...formTest}>
-				<label>
-					<h2>Title</h2>
-					<input name="name" />
-				</label>
+			<form {...formTest} class="space-y-4">
+				<div>
+					<label class="mb-1 block text-sm font-medium text-gray-700"> Title </label>
+					<input
+						name="name"
+						class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder-gray-400 focus:border-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none"
+						placeholder="Enter title..."
+					/>
+				</div>
 
-				<label>
-					<h2>Write your post</h2>
-					<input type="number" name="age" />
-				</label>
+				<div>
+					<label class="mb-1 block text-sm font-medium text-gray-700"> Age </label>
+					<input
+						type="number"
+						name="age"
+						class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder-gray-400 focus:border-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none"
+						placeholder="Enter age..."
+					/>
+				</div>
 
-				<button>Publish!</button>
+				<button
+					class="w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800"
+				>
+					Publish
+				</button>
 			</form>
 		</div>
 	</div>

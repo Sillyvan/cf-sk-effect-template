@@ -15,6 +15,7 @@ export const queryTest = query(async (): Promise<QueryResult> => {
 
 	const randomTask = Effect.gen(function* () {
 		attemptCount++;
+		yield* Effect.sleep(750);
 		const random = Math.random();
 
 		if (random < 0.33) {

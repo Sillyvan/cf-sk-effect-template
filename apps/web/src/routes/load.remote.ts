@@ -12,7 +12,7 @@ const mockItems: Item[] = Array.from({ length: TOTAL_ITEMS }, (_, i) => ({
 	description: `Description for item ${i + 1}`
 }));
 
-export const loadItems = query(v.optional(v.number(), 0), async (offset) => {
+export const loadItems = query(v.number(), async (offset) => {
 	const startIndex = offset;
 	const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, TOTAL_ITEMS);
 	const items = mockItems.slice(startIndex, endIndex);
