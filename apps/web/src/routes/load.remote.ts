@@ -1,56 +1,28 @@
-import { Effect, Schedule, Data } from 'effect';
-import { effectQuery } from '$lib/effect-query';
-import type { LoadResult } from '$lib/types';
+import { Effect } from 'effect';
+import { query } from '$app/server';
+import type { Item } from '$lib/types';
+import * as v from 'valibot';
 
-class LoadFailureError extends Data.TaggedError('LoadFailure')<{
-	attempt: number;
-}> {}
+const TOTAL_ITEMS = 6;
+const ITEMS_PER_PAGE = 2;
 
-class NetworkError extends Data.TaggedError('NetworkError')<{
-	attempt: number;
-}> {}
+const mockItems: Item[] = Array.from({ length: TOTAL_ITEMS }, (_, i) => ({
+	id: i + 1,
+	name: `Item ${i + 1}`,
+	description: `Description for item ${i + 1}`
+}));
 
-export const loadTest = effectQuery<LoadResult, LoadFailureError | NetworkError>(() => {
-	let attemptCount = 0;
+export const loadItems = query(v.optional(v.number(), 0), async (offset) => {
+	const startIndex = offset;
+	const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, TOTAL_ITEMS);
+	const items = mockItems.slice(startIndex, endIndex);
 
-	const randomTask = Effect.gen(function* () {
-		attemptCount++;
-		const random = Math.random();
-
-		if (random < 0.33) {
-			// LoadFailure
-			return yield* Effect.fail(new LoadFailureError({ attempt: attemptCount }));
-		} else if (random < 0.66) {
-			// NetworkError
-			return yield* Effect.fail(new NetworkError({ attempt: attemptCount }));
-		} else {
-			// Success
-			return {
-				attempts: attemptCount,
-				status: 'success' as const,
-				message:
-					attemptCount === 1 ? 'Success on first try!' : `Success after ${attemptCount} attempts!`
-			};
-		}
+	const effect = Effect.succeed({
+		items,
+		hasMore: endIndex < TOTAL_ITEMS,
+		total: TOTAL_ITEMS,
+		offset: startIndex
 	});
 
-	return randomTask.pipe(
-		Effect.retry(Schedule.recurs(1)),
-		Effect.catchTags({
-			LoadFailure: (error) =>
-				Effect.succeed<LoadResult>({
-					attempts: error.attempt,
-					status: 'failed',
-					message: `Load failed after ${error.attempt} attempts`,
-					error: error._tag
-				}),
-			NetworkError: (error) =>
-				Effect.succeed<LoadResult>({
-					attempts: error.attempt,
-					status: 'failed',
-					message: `Load failed after ${error.attempt} attempts`,
-					error: error._tag
-				})
-		})
-	);
+	return await Effect.runPromise(effect);
 });
