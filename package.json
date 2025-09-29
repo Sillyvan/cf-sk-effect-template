@@ -9,8 +9,7 @@
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,md,svelte}\"",
     "check": "turbo run check",
-    "check-types": "turbo run check-types",
-    "cf-typegen": "turbo run cf-typegen"
+    "check-types": "turbo run check-types"
   },
   "devDependencies": {
     "turbo": "^2.5.8",
@@ -32,4 +31,3 @@
     "effect": "catalog:"
   }
 }
-

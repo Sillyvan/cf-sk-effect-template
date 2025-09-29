@@ -17,13 +17,15 @@
 
 	let queryResult = $state<ReturnType<typeof queryTest> | null>(null);
 
-	function load() {
-		queryResult = queryTest();
-	}
+	async function load() {
+		const query = queryTest();
+		queryResult = query;
 
-	$effect(() => {
-		if (queryResult?.current?.status === 'failed') toast.error(queryResult.current.message);
-	});
+		const result = await query;
+		if (result.status === 'failed') {
+			toast.error(result.message);
+		}
+	}
 </script>
 
 <main class="py-6">

@@ -13,7 +13,7 @@
 		"format": "prettier --write .",
 		"lint": "prettier --check . && eslint .",
 		"deploy": "pnpm run build && wrangler deploy",
-		"cf-typegen": "wrangler types ./src/worker-configuration.d.ts"
+		"cf-typegen": "wrangler types ./src/worker-configuration.d.ts -c ./wrangler.jsonc -c ../cf/wrangler.jsonc"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",
