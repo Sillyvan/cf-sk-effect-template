@@ -26,8 +26,8 @@
 	});
 </script>
 
-<main class="min-h-dvh bg-gray-50 p-6">
-	<div class="mx-auto max-w-3xl space-y-6">
+<main class="py-6">
+	<div class="space-y-6">
 		<!-- Load Section -->
 		<div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
 			<h1 class="mb-4 text-lg font-medium text-gray-900">Load</h1>
