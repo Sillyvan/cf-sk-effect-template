@@ -133,6 +133,30 @@
 		});
 	});
 
+	// Auto-scroll to bottom when new messages arrive
+	$effect(() => {
+		// Watch for new messages
+		chatState.messages.length;
+
+		// Only auto-scroll if user is at bottom
+		if (isAtBottom && messagesContainer) {
+			// Use requestAnimationFrame to ensure DOM has updated
+			requestAnimationFrame(() => {
+				scrollToBottom('smooth');
+			});
+		}
+	});
+
+	// Scroll to bottom when joining chat
+	$effect(() => {
+		if (chatState.isJoined && messagesContainer) {
+			// Use auto behavior for initial scroll
+			requestAnimationFrame(() => {
+				scrollToBottom('auto');
+			});
+		}
+	});
+
 	async function joinChat() {
 		if (!chatState.socket || !formState.username.trim()) return;
 
@@ -220,6 +244,22 @@
 	}
 
 	let chatInput: HTMLInputElement | null = $state(null);
+	let messagesContainer: HTMLDivElement | null = $state(null);
+	let isAtBottom = $state(true); // Track if user is scrolled to bottom
+
+	function checkScrollPosition() {
+		if (!messagesContainer) return;
+
+		const { scrollTop, scrollHeight, clientHeight } = messagesContainer;
+		// Consider "at bottom" if within 50px of bottom
+		const threshold = 50;
+		isAtBottom = scrollHeight - scrollTop - clientHeight < threshold;
+	}
+
+	function scrollToBottom(behavior: ScrollBehavior = 'smooth') {
+		if (!messagesContainer) return;
+		messagesContainer.scrollTop = messagesContainer.scrollHeight;
+	}
 </script>
 
 <main class="py-6">
@@ -340,7 +380,11 @@
 				<!-- Chat Interface -->
 				<div class="flex h-96 flex-col">
 					<!-- Messages -->
-					<div class="flex-1 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-4">
+					<div
+						bind:this={messagesContainer}
+						onscroll={checkScrollPosition}
+						class="flex-1 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-4"
+					>
 						{#each chatState.messages as message (message.id)}
 							<div class="mb-3">
 								<span class="text-xs text-gray-500">{formatTime(message.timestamp)}</span>
