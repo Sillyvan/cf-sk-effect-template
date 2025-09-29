@@ -1,26 +1,21 @@
-import { Effect, Stream, Data } from 'effect';
-import type {
-	Message,
-	ClientMessage,
+import { Effect, Stream, Chunk, Option } from 'effect';
+import * as v from 'valibot';
+import type { Message, ClientMessage } from './chat-types.js';
+import {
+	UsernameSchema,
+	MessageContentSchema,
+	JoinChatSchema,
+	SendMessageSchema,
 	ConnectionError,
-	MessageError,
-	ValidationError,
-	ChatConnectionResult
+	MessageError
 } from './chat-types.js';
-
-// WebSocket connection state
-interface WebSocketConnection {
-	socket: WebSocket;
-	url: string;
-	readyState: number;
-}
 
 // Effect utilities for WebSocket chat functionality
 export const ChatEffects = {
 	/**
 	 * Creates a WebSocket connection as an Effect
 	 */
-	connect: (url: string): Effect.Effect<WebSocketConnection, ConnectionError> =>
+	connect: (url: string): Effect.Effect<WebSocket, ConnectionError> =>
 		Effect.gen(function* () {
 			try {
 				const socket = new WebSocket(url);
@@ -33,7 +28,7 @@ export const ChatEffects = {
 						resume(Effect.void);
 					};
 
-					const onError = (event: Event) => {
+					const onError = () => {
 						socket.removeEventListener('open', onOpen);
 						socket.removeEventListener('error', onError);
 						resume(Effect.fail(new ConnectionError({
@@ -46,11 +41,7 @@ export const ChatEffects = {
 					socket.addEventListener('error', onError);
 				});
 
-				return {
-					socket,
-					url,
-					readyState: socket.readyState
-				};
+				return socket;
 			} catch (error) {
 				return yield* Effect.fail(new ConnectionError({
 					reason: `Connection failed: ${error}`,
@@ -62,53 +53,59 @@ export const ChatEffects = {
 	/**
 	 * Creates a stream of incoming WebSocket messages using Effect's Stream.async
 	 */
-	messageStream: (connection: WebSocketConnection): Stream.Stream<Message, MessageError> =>
+	messageStream: (socket: WebSocket): Stream.Stream<Message, MessageError> =>
 		Stream.async<Message, MessageError>((emit) => {
 			const handleMessage = (event: MessageEvent) => {
 				try {
 					const message: Message = JSON.parse(event.data);
-					emit(Effect.succeed([message]));
+					emit(Effect.succeed(Chunk.of(message)));
 				} catch (error) {
-					emit(Effect.fail(new MessageError({
+					emit(Effect.fail(Option.some(new MessageError({
 						reason: `Failed to parse message: ${error}`,
 						messageContent: event.data
-					})));
+					}))));
 				}
 			};
 
-			const handleError = (event: Event) => {
-				emit(Effect.fail(new MessageError({
+			const handleError = () => {
+				emit(Effect.fail(Option.some(new MessageError({
 					reason: 'WebSocket error occurred',
 					messageContent: undefined
-				})));
+				}))));
 			};
 
-			const handleClose = () => {
-				// Signal end of stream with None
-				emit(Effect.fail(new MessageError({
-					reason: 'WebSocket connection closed',
-					messageContent: undefined
-				})));
+			const handleClose = (event: CloseEvent) => {
+				// Signal end of stream properly
+				if (event.code === 1000) {
+					// Normal closure
+					emit(Effect.fail(Option.none()));
+				} else {
+					// Error closure
+					emit(Effect.fail(Option.some(new MessageError({
+						reason: `WebSocket connection closed: ${event.code} ${event.reason}`,
+						messageContent: undefined
+					}))));
+				}
 			};
 
-			connection.socket.addEventListener('message', handleMessage);
-			connection.socket.addEventListener('error', handleError);
-			connection.socket.addEventListener('close', handleClose);
+			socket.addEventListener('message', handleMessage);
+			socket.addEventListener('error', handleError);
+			socket.addEventListener('close', handleClose);
 
 			// Cleanup function
 			return Effect.sync(() => {
-				connection.socket.removeEventListener('message', handleMessage);
-				connection.socket.removeEventListener('error', handleError);
-				connection.socket.removeEventListener('close', handleClose);
+				socket.removeEventListener('message', handleMessage);
+				socket.removeEventListener('error', handleError);
+				socket.removeEventListener('close', handleClose);
 			});
 		}),
 
 	/**
 	 * Sends a message through WebSocket as an Effect
 	 */
-	sendMessage: (connection: WebSocketConnection) => (message: ClientMessage): Effect.Effect<void, MessageError> =>
+	sendMessage: (socket: WebSocket) => (message: ClientMessage): Effect.Effect<void, MessageError> =>
 		Effect.gen(function* () {
-			if (connection.socket.readyState !== WebSocket.OPEN) {
+			if (socket.readyState !== WebSocket.OPEN) {
 				return yield* Effect.fail(new MessageError({
 					reason: 'WebSocket is not connected',
 					messageContent: JSON.stringify(message)
@@ -116,7 +113,7 @@ export const ChatEffects = {
 			}
 
 			try {
-				connection.socket.send(JSON.stringify(message));
+				socket.send(JSON.stringify(message));
 			} catch (error) {
 				return yield* Effect.fail(new MessageError({
 					reason: `Failed to send message: ${error}`,
@@ -126,138 +123,92 @@ export const ChatEffects = {
 		}),
 
 	/**
-	 * Validates username
+	 * Validates username using Valibot schema
 	 */
-	validateUsername: (username: string): Effect.Effect<string, ValidationError> =>
+	validateUsername: (username: string): Effect.Effect<string, MessageError> =>
 		Effect.gen(function* () {
-			if (!username || typeof username !== 'string') {
-				return yield* Effect.fail(new ValidationError({
-					field: 'username',
-					value: username,
-					reason: 'Username must be a non-empty string'
+			try {
+				return v.parse(UsernameSchema, username.trim());
+			} catch (error) {
+				return yield* Effect.fail(new MessageError({
+					reason: error instanceof Error ? error.message : 'Username validation failed',
+					messageContent: username
 				}));
 			}
-
-			const trimmed = username.trim();
-			if (trimmed.length === 0) {
-				return yield* Effect.fail(new ValidationError({
-					field: 'username',
-					value: username,
-					reason: 'Username cannot be empty'
-				}));
-			}
-
-			if (trimmed.length > 30) {
-				return yield* Effect.fail(new ValidationError({
-					field: 'username',
-					value: username,
-					reason: 'Username cannot be longer than 30 characters'
-				}));
-			}
-
-			if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
-				return yield* Effect.fail(new ValidationError({
-					field: 'username',
-					value: username,
-					reason: 'Username can only contain letters, numbers, underscores, and hyphens'
-				}));
-			}
-
-			return trimmed;
 		}),
 
 	/**
-	 * Validates message content
+	 * Validates message content using Valibot schema
 	 */
-	validateMessage: (content: string): Effect.Effect<string, ValidationError> =>
+	validateMessage: (content: string): Effect.Effect<string, MessageError> =>
 		Effect.gen(function* () {
-			if (!content || typeof content !== 'string') {
-				return yield* Effect.fail(new ValidationError({
-					field: 'message',
-					value: content,
-					reason: 'Message must be a non-empty string'
+			try {
+				return v.parse(MessageContentSchema, content.trim());
+			} catch (error) {
+				return yield* Effect.fail(new MessageError({
+					reason: error instanceof Error ? error.message : 'Message validation failed',
+					messageContent: content
 				}));
 			}
-
-			const trimmed = content.trim();
-			if (trimmed.length === 0) {
-				return yield* Effect.fail(new ValidationError({
-					field: 'message',
-					value: content,
-					reason: 'Message cannot be empty'
-				}));
-			}
-
-			if (trimmed.length > 500) {
-				return yield* Effect.fail(new ValidationError({
-					field: 'message',
-					value: content,
-					reason: 'Message cannot be longer than 500 characters'
-				}));
-			}
-
-			return trimmed;
 		}),
 
 	/**
 	 * Joins a chat room
 	 */
-	joinChat: (connection: WebSocketConnection, username: string): Effect.Effect<void, ValidationError | MessageError> =>
+	joinChat: (socket: WebSocket, username: string): Effect.Effect<void, MessageError> =>
 		Effect.gen(function* () {
 			const validUsername = yield* ChatEffects.validateUsername(username);
 			const joinMessage: ClientMessage = {
 				type: 'join_chat',
 				username: validUsername
 			};
-			yield* ChatEffects.sendMessage(connection)(joinMessage);
+			yield* ChatEffects.sendMessage(socket)(joinMessage);
 		}),
 
 	/**
 	 * Sends a chat message
 	 */
-	sendChatMessage: (connection: WebSocketConnection, content: string): Effect.Effect<void, ValidationError | MessageError> =>
+	sendChatMessage: (socket: WebSocket, content: string): Effect.Effect<void, MessageError> =>
 		Effect.gen(function* () {
 			const validContent = yield* ChatEffects.validateMessage(content);
 			const chatMessage: ClientMessage = {
 				type: 'send_message',
 				content: validContent
 			};
-			yield* ChatEffects.sendMessage(connection)(chatMessage);
+			yield* ChatEffects.sendMessage(socket)(chatMessage);
 		}),
 
 	/**
 	 * Leaves the chat room
 	 */
-	leaveChat: (connection: WebSocketConnection): Effect.Effect<void, MessageError> =>
+	leaveChat: (socket: WebSocket): Effect.Effect<void, MessageError> =>
 		Effect.gen(function* () {
 			const leaveMessage: ClientMessage = {
 				type: 'leave_chat'
 			};
-			yield* ChatEffects.sendMessage(connection)(leaveMessage);
+			yield* ChatEffects.sendMessage(socket)(leaveMessage);
 		}),
 
 	/**
 	 * Closes WebSocket connection
 	 */
-	disconnect: (connection: WebSocketConnection): Effect.Effect<void, never> =>
+	disconnect: (socket: WebSocket): Effect.Effect<void, never> =>
 		Effect.sync(() => {
-			if (connection.socket.readyState === WebSocket.OPEN) {
-				connection.socket.close(1000, 'User disconnecting');
+			if (socket.readyState === WebSocket.OPEN) {
+				socket.close(1000, 'User disconnecting');
 			}
 		}),
 
 	/**
 	 * Error handling utility - converts errors to user-friendly messages
 	 */
-	handleError: <E extends ConnectionError | MessageError | ValidationError>(error: E): Effect.Effect<string, never> =>
+	handleError: <E extends ConnectionError | MessageError>(error: E): Effect.Effect<string, never> =>
 		Effect.succeed(() => {
 			switch (error._tag) {
 				case 'ConnectionError':
 					return `Connection failed: ${error.reason}`;
 				case 'MessageError':
 					return `Message error: ${error.reason}`;
-				case 'ValidationError':
-					return `Invalid ${error.field}: ${error.reason}`;
 				default:
 					return 'An unknown error occurred';
 			}

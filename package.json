@@ -7,9 +7,7 @@
     "preview": "turbo run preview",
     "deploy": "turbo run deploy",
     "lint": "turbo run lint",
-    "format": "prettier --write \"**/*.{ts,md,svelte}\"",
-    "check": "turbo run check",
-    "check-types": "turbo run check-types"
+    "format": "prettier --write \"**/*.{ts,md,svelte}\""
   },
   "devDependencies": {
     "turbo": "^2.5.8",
