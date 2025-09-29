@@ -4,8 +4,6 @@ import type { Message, ClientMessage } from './chat-types.js';
 import {
 	UsernameSchema,
 	MessageContentSchema,
-	JoinChatSchema,
-	SendMessageSchema,
 	ConnectionError,
 	MessageError
 } from './chat-types.js';
@@ -31,10 +29,14 @@ export const ChatEffects = {
 					const onError = () => {
 						socket.removeEventListener('open', onOpen);
 						socket.removeEventListener('error', onError);
-						resume(Effect.fail(new ConnectionError({
-							reason: 'Failed to connect to WebSocket',
-							connectionId: undefined
-						})));
+						resume(
+							Effect.fail(
+								new ConnectionError({
+									reason: 'Failed to connect to WebSocket',
+									connectionId: undefined
+								})
+							)
+						);
 					};
 
 					socket.addEventListener('open', onOpen);
@@ -43,10 +45,12 @@ export const ChatEffects = {
 
 				return socket;
 			} catch (error) {
-				return yield* Effect.fail(new ConnectionError({
-					reason: `Connection failed: ${error}`,
-					connectionId: undefined
-				}));
+				return yield* Effect.fail(
+					new ConnectionError({
+						reason: `Connection failed: ${error}`,
+						connectionId: undefined
+					})
+				);
 			}
 		}),
 
@@ -60,18 +64,30 @@ export const ChatEffects = {
 					const message: Message = JSON.parse(event.data);
 					emit(Effect.succeed(Chunk.of(message)));
 				} catch (error) {
-					emit(Effect.fail(Option.some(new MessageError({
-						reason: `Failed to parse message: ${error}`,
-						messageContent: event.data
-					}))));
+					emit(
+						Effect.fail(
+							Option.some(
+								new MessageError({
+									reason: `Failed to parse message: ${error}`,
+									messageContent: event.data
+								})
+							)
+						)
+					);
 				}
 			};
 
 			const handleError = () => {
-				emit(Effect.fail(Option.some(new MessageError({
-					reason: 'WebSocket error occurred',
-					messageContent: undefined
-				}))));
+				emit(
+					Effect.fail(
+						Option.some(
+							new MessageError({
+								reason: 'WebSocket error occurred',
+								messageContent: undefined
+							})
+						)
+					)
+				);
 			};
 
 			const handleClose = (event: CloseEvent) => {
@@ -81,10 +97,16 @@ export const ChatEffects = {
 					emit(Effect.fail(Option.none()));
 				} else {
 					// Error closure
-					emit(Effect.fail(Option.some(new MessageError({
-						reason: `WebSocket connection closed: ${event.code} ${event.reason}`,
-						messageContent: undefined
-					}))));
+					emit(
+						Effect.fail(
+							Option.some(
+								new MessageError({
+									reason: `WebSocket connection closed: ${event.code} ${event.reason}`,
+									messageContent: undefined
+								})
+							)
+						)
+					);
 				}
 			};
 
@@ -103,24 +125,30 @@ export const ChatEffects = {
 	/**
 	 * Sends a message through WebSocket as an Effect
 	 */
-	sendMessage: (socket: WebSocket) => (message: ClientMessage): Effect.Effect<void, MessageError> =>
-		Effect.gen(function* () {
-			if (socket.readyState !== WebSocket.OPEN) {
-				return yield* Effect.fail(new MessageError({
-					reason: 'WebSocket is not connected',
-					messageContent: JSON.stringify(message)
-				}));
-			}
+	sendMessage:
+		(socket: WebSocket) =>
+		(message: ClientMessage): Effect.Effect<void, MessageError> =>
+			Effect.gen(function* () {
+				if (socket.readyState !== WebSocket.OPEN) {
+					return yield* Effect.fail(
+						new MessageError({
+							reason: 'WebSocket is not connected',
+							messageContent: JSON.stringify(message)
+						})
+					);
+				}
 
-			try {
-				socket.send(JSON.stringify(message));
-			} catch (error) {
-				return yield* Effect.fail(new MessageError({
-					reason: `Failed to send message: ${error}`,
-					messageContent: JSON.stringify(message)
-				}));
-			}
-		}),
+				try {
+					socket.send(JSON.stringify(message));
+				} catch (error) {
+					return yield* Effect.fail(
+						new MessageError({
+							reason: `Failed to send message: ${error}`,
+							messageContent: JSON.stringify(message)
+						})
+					);
+				}
+			}),
 
 	/**
 	 * Validates username using Valibot schema
@@ -130,10 +158,12 @@ export const ChatEffects = {
 			try {
 				return v.parse(UsernameSchema, username.trim());
 			} catch (error) {
-				return yield* Effect.fail(new MessageError({
-					reason: error instanceof Error ? error.message : 'Username validation failed',
-					messageContent: username
-				}));
+				return yield* Effect.fail(
+					new MessageError({
+						reason: error instanceof Error ? error.message : 'Username validation failed',
+						messageContent: username
+					})
+				);
 			}
 		}),
 
@@ -145,10 +175,12 @@ export const ChatEffects = {
 			try {
 				return v.parse(MessageContentSchema, content.trim());
 			} catch (error) {
-				return yield* Effect.fail(new MessageError({
-					reason: error instanceof Error ? error.message : 'Message validation failed',
-					messageContent: content
-				}));
+				return yield* Effect.fail(
+					new MessageError({
+						reason: error instanceof Error ? error.message : 'Message validation failed',
+						messageContent: content
+					})
+				);
 			}
 		}),
 
@@ -212,5 +244,6 @@ export const ChatEffects = {
 				default:
 					return 'An unknown error occurred';
 			}
-		}).pipe(Effect.map(fn => fn()))
+		}).pipe(Effect.map((fn) => fn()))
 };
+

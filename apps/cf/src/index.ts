@@ -83,9 +83,7 @@ export class ChatRoom extends DurableObject<Env> {
 		});
 
 		// Set up auto-response for ping/pong to keep connections alive
-		this.ctx.setWebSocketAutoResponse(
-			new WebSocketRequestResponsePair('ping', 'pong')
-		);
+		this.ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
 	}
 
 	async fetch(request: Request): Promise<Response> {
@@ -98,17 +96,20 @@ export class ChatRoom extends DurableObject<Env> {
 		const url = new URL(request.url);
 
 		if (url.pathname === '/stats') {
-			return new Response(JSON.stringify({
-				connectedUsers: this.sessions.size,
-				messageHistory: this.messageHistory.length
-			}), {
-				headers: { 'Content-Type': 'application/json' }
-			});
+			return new Response(
+				JSON.stringify({
+					connectedUsers: this.sessions.size,
+					messageHistory: this.messageHistory.length,
+				}),
+				{
+					headers: { 'Content-Type': 'application/json' },
+				},
+			);
 		}
 
 		return new Response('Chat room endpoints: /stats for statistics, WebSocket upgrade for chat connection', {
 			status: 200,
-			headers: { 'Content-Type': 'text/plain' }
+			headers: { 'Content-Type': 'text/plain' },
 		});
 	}
 
@@ -120,12 +121,14 @@ export class ChatRoom extends DurableObject<Env> {
 		this.ctx.acceptWebSocket(server);
 
 		// Send connection confirmation
-		server.send(JSON.stringify({
-			id: crypto.randomUUID(),
-			content: 'Connected to chat server',
-			timestamp: Date.now(),
-			type: 'server'
-		}));
+		server.send(
+			JSON.stringify({
+				id: crypto.randomUUID(),
+				content: 'Connected to chat server',
+				timestamp: Date.now(),
+				type: 'server',
+			}),
+		);
 
 		return new Response(null, {
 			status: 101,
@@ -134,15 +137,15 @@ export class ChatRoom extends DurableObject<Env> {
 	}
 
 	async webSocketMessage(ws: WebSocket, message: ArrayBuffer | string) {
+		const messageText = typeof message === 'string' ? message : new TextDecoder().decode(message);
+
+		// Handle ping messages
+		if (messageText === 'ping') {
+			ws.send('pong');
+			return;
+		}
+
 		try {
-			const messageText = typeof message === 'string' ? message : new TextDecoder().decode(message);
-
-			// Handle ping messages
-			if (messageText === 'ping') {
-				ws.send('pong');
-				return;
-			}
-
 			const clientMessage: ClientMessage = JSON.parse(messageText);
 
 			switch (clientMessage.type) {
@@ -176,7 +179,7 @@ export class ChatRoom extends DurableObject<Env> {
 		}
 
 		// Check if username is already taken
-		const existingUser = Array.from(this.sessions.values()).find(user => user.username === username);
+		const existingUser = Array.from(this.sessions.values()).find((user) => user.username === username);
 		if (existingUser) {
 			await this.sendError(ws, 'Username already taken');
 			return;
@@ -187,7 +190,7 @@ export class ChatRoom extends DurableObject<Env> {
 		const user: ChatUser = {
 			username: username.trim(),
 			connectionId,
-			joinedAt: Date.now()
+			joinedAt: Date.now(),
 		};
 
 		this.sessions.set(ws, user);
@@ -200,7 +203,7 @@ export class ChatRoom extends DurableObject<Env> {
 			id: crypto.randomUUID(),
 			content: `Welcome to the chat, ${user.username}!`,
 			timestamp: Date.now(),
-			type: 'server'
+			type: 'server',
 		});
 
 		// Send recent message history
@@ -213,7 +216,7 @@ export class ChatRoom extends DurableObject<Env> {
 			id: crypto.randomUUID(),
 			username: user.username,
 			timestamp: Date.now(),
-			type: 'user_joined'
+			type: 'user_joined',
 		};
 
 		this.addToHistory(joinMessage);
@@ -238,7 +241,7 @@ export class ChatRoom extends DurableObject<Env> {
 			content: content.trim(),
 			username: user.username,
 			timestamp: Date.now(),
-			type: 'message'
+			type: 'message',
 		};
 
 		this.addToHistory(chatMessage);
@@ -255,7 +258,7 @@ export class ChatRoom extends DurableObject<Env> {
 				id: crypto.randomUUID(),
 				username: user.username,
 				timestamp: Date.now(),
-				type: 'user_left'
+				type: 'user_left',
 			};
 
 			this.addToHistory(leaveMessage);
@@ -291,7 +294,7 @@ export class ChatRoom extends DurableObject<Env> {
 			id: crypto.randomUUID(),
 			content: `Error: ${errorMessage}`,
 			timestamp: Date.now(),
-			type: 'server'
+			type: 'server',
 		};
 
 		await this.sendToWebSocket(ws, serverMessage);
@@ -345,19 +348,22 @@ export class CFWorker extends WorkerEntrypoint<Env> {
 			const roomId = url.searchParams.get('room') || 'default';
 			const stats = await this.getChatRoomStats(roomId);
 			return new Response(JSON.stringify(stats), {
-				headers: { 'Content-Type': 'application/json' }
+				headers: { 'Content-Type': 'application/json' },
 			});
 		}
 
 		// Default response
-		return new Response(`CF Worker is running!
+		return new Response(
+			`CF Worker is running!
 
 Available endpoints:
 - /websocket - WebSocket chat connection
 - /chat-stats - Get chat room statistics
-- RPC methods: sayHelloFromWorker, sayHelloFromDO, getChatRoom, getChatRoomStats`, {
-			headers: { 'Content-Type': 'text/plain' }
-		});
+- RPC methods: sayHelloFromWorker, sayHelloFromDO, getChatRoom, getChatRoomStats`,
+			{
+				headers: { 'Content-Type': 'text/plain' },
+			},
+		);
 	}
 }
 

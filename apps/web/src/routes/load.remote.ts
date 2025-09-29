@@ -13,15 +13,17 @@ const mockItems: Item[] = Array.from({ length: TOTAL_ITEMS }, (_, i) => ({
 }));
 
 export const loadItems = query(v.number(), async (offset) => {
-	const startIndex = offset;
-	const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, TOTAL_ITEMS);
-	const items = mockItems.slice(startIndex, endIndex);
+	const effect = Effect.gen(function* () {
+		const startIndex = offset;
+		const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, TOTAL_ITEMS);
+		const items = mockItems.slice(startIndex, endIndex);
 
-	const effect = Effect.succeed({
-		items,
-		hasMore: endIndex < TOTAL_ITEMS,
-		total: TOTAL_ITEMS,
-		offset: startIndex
+		return {
+			items,
+			hasMore: endIndex < TOTAL_ITEMS,
+			total: TOTAL_ITEMS,
+			offset: startIndex
+		};
 	});
 
 	return await Effect.runPromise(effect);
