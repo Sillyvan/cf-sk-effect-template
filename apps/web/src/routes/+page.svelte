@@ -1,7 +1,5 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
-	import { onMount } from 'svelte';
-	import { Effect } from 'effect';
 	import { queryTest } from './query.remote';
 	import { loadItems } from './load.remote';
 	import { commandTest } from './command.remote';
@@ -15,63 +13,21 @@
 	let isLoading = $state(false);
 	let loadError = $state<string | null>(null);
 
-	await loadInitialItems();
+	await itemLoader();
 
-
-	function loadItemsEffect(offset: number) {
-		return Effect.promise(() => loadItems(offset));
-	}
-
-	async function loadInitialItems() {
-		isLoading = true;
-		loadError = null;
-
-		const effect = loadItemsEffect(0).pipe(
-			Effect.tap((result) =>
-				Effect.sync(() => {
-					items = result.items;
-					currentOffset = result.items.length;
-					hasMore = result.hasMore;
-				})
-			),
-			Effect.tapError((error) =>
-				Effect.sync(() => {
-					loadError = 'Failed to load items';
-					toast.error('Failed to load items');
-				})
-			)
-		);
-
-		await Effect.runPromise(effect).finally(() => {
-			isLoading = false;
-		});
-	}
-
-	async function loadMore() {
+	async function itemLoader() {
 		if (isLoading || !hasMore) return;
 
 		isLoading = true;
 		loadError = null;
 
-		const effect = loadItemsEffect(currentOffset).pipe(
-			Effect.tap((result) =>
-				Effect.sync(() => {
-					items = [...items, ...result.items];
-					currentOffset += result.items.length;
-					hasMore = result.hasMore;
-				})
-			),
-			Effect.tapError((error) =>
-				Effect.sync(() => {
-					loadError = 'Failed to load more items';
-					toast.error('Failed to load more items');
-				})
-			)
-		);
+		const result = await loadItems(currentOffset);
 
-		await Effect.runPromise(effect).finally(() => {
-			isLoading = false;
-		});
+		items = [...items, ...result.items];
+		currentOffset += result.items.length;
+		hasMore = result.hasMore;
+
+		isLoading = false;
 	}
 
 	let queryResult = $state<ReturnType<typeof queryTest> | null>(null);
@@ -91,7 +47,7 @@
 	<div class="space-y-6">
 		<!-- Load Section -->
 		<div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-			<h1 class="mb-4 text-lg font-medium text-gray-900">Load (Effect Stream Pagination)</h1>
+			<h1 class="mb-4 text-lg font-medium text-gray-900">Load</h1>
 
 			{#if isLoading && items.length === 0}
 				<div class="mb-4 flex items-center justify-center rounded-lg border bg-gray-50 p-8">
@@ -123,9 +79,9 @@
 
 			{#if hasMore}
 				<button
-					onclick={loadMore}
+					onclick={itemLoader}
 					disabled={isLoading}
-					class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed"
+					class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
 				>
 					{#if isLoading}
 						<span class="flex items-center space-x-2">
@@ -138,8 +94,6 @@
 						Load more
 					{/if}
 				</button>
-			{:else if items.length > 0}
-				<p class="text-sm text-gray-500">No more items to load</p>
 			{/if}
 		</div>
 
@@ -202,7 +156,7 @@
 					<label class="mb-1 block text-sm font-medium text-gray-700"> Title </label>
 					<input
 						name="name"
-						class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder-gray-400 focus:border-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none"
+						class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder-gray-400 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
 						placeholder="Enter title..."
 					/>
 				</div>
@@ -212,7 +166,7 @@
 					<input
 						type="number"
 						name="age"
-						class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder-gray-400 focus:border-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none"
+						class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder-gray-400 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
 						placeholder="Enter age..."
 					/>
 				</div>
