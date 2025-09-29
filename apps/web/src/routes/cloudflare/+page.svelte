@@ -4,6 +4,7 @@
 	import type { Message } from '$lib/chat/chat-types.js';
 	import { browser, dev } from '$app/environment';
 	import { callWorker, callDurableObject } from './rpc.remote';
+	import { tick } from 'svelte';
 
 	// RPC Testing State
 	let workerResult = $state<{ message: string } | null>(null);
@@ -217,6 +218,8 @@
 				return 'text-gray-800';
 		}
 	}
+
+	let chatInput: HTMLInputElement | null = $state(null);
 </script>
 
 <main class="py-6">
@@ -280,8 +283,8 @@
 		<div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
 			<h1 class="mb-4 text-lg font-medium text-gray-900">WebSocket Chat</h1>
 			<p class="mb-6 text-sm text-gray-600">
-				Real-time chat functionality using WebSocket connections to Cloudflare Workers with Effect-based
-				validation and state management.
+				Real-time chat functionality using WebSocket connections to Cloudflare Workers with
+				Effect-based validation and state management.
 			</p>
 
 			<!-- Connection Status -->
@@ -290,7 +293,7 @@
 					<div
 						class="h-3 w-3 rounded-full {chatState.isConnected ? 'bg-green-500' : 'bg-red-500'}"
 					></div>
-					<span class="font-medium text-sm">{connectionStatusText}</span>
+					<span class="text-sm font-medium">{connectionStatusText}</span>
 				</div>
 
 				{#if chatState.connectionError}
@@ -301,7 +304,7 @@
 			<!-- Connection Form -->
 			{#if !chatState.isConnected}
 				<div class="mb-6 rounded-lg border border-gray-200 p-4">
-					<h3 class="mb-3 text-md font-medium text-gray-900">Connect to Chat</h3>
+					<h3 class="text-md mb-3 font-medium text-gray-900">Connect to Chat</h3>
 					<div class="flex gap-3">
 						<button
 							onclick={connectToChat}
@@ -315,7 +318,7 @@
 			{:else if !chatState.isJoined}
 				<!-- Username Form -->
 				<div class="mb-6 rounded-lg border border-gray-200 p-4">
-					<h3 class="mb-3 text-md font-medium text-gray-900">Join Chat</h3>
+					<h3 class="text-md mb-3 font-medium text-gray-900">Join Chat</h3>
 					<div class="flex gap-3">
 						<input
 							bind:value={formState.username}
@@ -343,7 +346,7 @@
 								<span class="text-xs text-gray-500">{formatTime(message.timestamp)}</span>
 								{#if message.type === 'message'}
 									<div class="mt-1">
-										<span class="font-medium text-sm text-gray-900">{message.username}:</span>
+										<span class="text-sm font-medium text-gray-900">{message.username}:</span>
 										<span class="ml-2 text-sm text-gray-700">{message.content}</span>
 									</div>
 								{:else}
@@ -366,14 +369,24 @@
 						{/if}
 						<div class="flex gap-3">
 							<input
+								data-sveltekit-keepfocus
 								bind:value={formState.messageInput}
-								onkeypress={handleKeyPress}
+								bind:this={chatInput}
+								onkeypress={async (e) => {
+									handleKeyPress(e);
+									await tick();
+									chatInput?.focus();
+								}}
 								placeholder="Type your message..."
 								class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
 								disabled={formState.isSending}
 							/>
 							<button
-								onclick={sendMessage}
+								onclick={async () => {
+									await sendMessage();
+									await tick();
+									chatInput?.focus();
+								}}
 								disabled={!canSendMessage}
 								class="rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 disabled:opacity-50"
 							>
