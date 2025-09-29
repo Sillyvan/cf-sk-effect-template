@@ -1,4 +1,3 @@
-import { Effect } from 'effect';
 import { query } from '$app/server';
 import type { Item } from '$lib/types';
 import * as v from 'valibot';
@@ -13,18 +12,14 @@ const mockItems: Item[] = Array.from({ length: TOTAL_ITEMS }, (_, i) => ({
 }));
 
 export const loadItems = query(v.number(), async (offset) => {
-	const effect = Effect.gen(function* () {
-		const startIndex = offset;
-		const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, TOTAL_ITEMS);
-		const items = mockItems.slice(startIndex, endIndex);
+	const startIndex = offset;
+	const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, TOTAL_ITEMS);
+	const items = mockItems.slice(startIndex, endIndex);
 
-		return {
-			items,
-			hasMore: endIndex < TOTAL_ITEMS,
-			total: TOTAL_ITEMS,
-			offset: startIndex
-		};
-	});
-
-	return await Effect.runPromise(effect);
+	return {
+		items,
+		hasMore: endIndex < TOTAL_ITEMS,
+		total: TOTAL_ITEMS,
+		offset: startIndex
+	};
 });
