@@ -2,31 +2,57 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Project Overview
+
+This is a **Cloudflare + SvelteKit + Effect.ts template** built on Turborepo. It demonstrates production-ready patterns for building type-safe, composable applications using:
+
+- **SvelteKit** with Cloudflare Pages adapter
+- **Effect.ts** for functional, composable error handling and dependency injection
+- **Cloudflare Workers & Durable Objects** for backend services
+- **Valibot** for runtime validation
+- **SvelteKit Remote Functions** for type-safe client-server communication
+
 ## Project Structure
 
-This is a Turborepo monorepo that has been modified from the original Next.js template to use SvelteKit with Cloudflare Pages deployment. The original Turborepo structure remains, but the `web` app has been converted to a SvelteKit application.
+This is a Turborepo monorepo with:
 
-### Key Components
+### Applications
 
-- **Monorepo Management**: Uses Turborepo for task orchestration across packages
-- **Web App**: SvelteKit application (`apps/web`) configured for Cloudflare Pages deployment
+- **apps/web** - SvelteKit application with Cloudflare Pages deployment
+  - Main frontend application
+  - Demonstrates Effect integration with SvelteKit
+  - WebSocket chat client
+  - Remote functions for server-side logic
+
+- **apps/cf** - Cloudflare Worker with Durable Objects
+  - Backend Worker with RPC entrypoint
+  - Durable Objects (MyDurableObject, ChatRoom)
+  - WebSocket chat server
+  - Bound to web app via Service Bindings
+
+### Packages
+
+- **packages/rate-limiter** - Effect-based rate limiter
+  - Wraps Cloudflare Rate Limiters in Effect
+  - Type-safe error handling with Tagged Errors
+  - Used in web app remote functions
+
+### Key Technologies
+
 - **Package Manager**: pnpm (required, specified in package.json)
 - **Node Version**: >= 24 (specified in engines)
-
-### Architecture Notes
-
-- The `web` app uses `@sveltejs/adapter-cloudflare` for Cloudflare Pages deployment
-- Wrangler configuration in `apps/web/wrangler.jsonc` defines the Cloudflare Worker setup
-- TypeScript types for Cloudflare Workers are auto-generated via `wrangler types`
-- TailwindCSS v4 is configured for styling
-- The project appears to be a template for Cloudflare + SvelteKit + Effect projects (based on repo name)
+- **Monorepo**: Turborepo for task orchestration
+- **Build Tool**: Rolldown (via `rolldown-vite`)
+- **Styling**: TailwindCSS v4
+- **Runtime Validation**: Valibot
+- **Effect Version**: Managed via pnpm catalog (v3.17.14)
 
 ## Development Commands
 
-### Global Commands (from repository root)
+### Repository Root Commands
 
 ```bash
-# Start development for all apps
+# Start development for all apps (web + cf worker)
 pnpm dev
 
 # Build all apps and packages
@@ -35,219 +61,746 @@ pnpm build
 # Lint all apps and packages
 pnpm lint
 
-# Format code across the entire monorepo
+# Format code across monorepo
 pnpm format
 
 # Type check all packages
 pnpm check-types
 ```
 
-### SvelteKit Web App Commands (from apps/web or using filters)
+### Web App Commands (apps/web)
 
 ```bash
 # Development server
-turbo dev --filter=web
-# or from apps/web:
 pnpm dev
+# or with filter from root:
+turbo dev --filter=web
 
 # Build for production
-turbo build --filter=web
-# or from apps/web:
 pnpm build
 
 # Preview build locally with Wrangler
-# (from apps/web)
 pnpm preview
 
 # Deploy to Cloudflare Pages
-# (from apps/web)
 pnpm deploy
 
 # Type checking and linting
-# (from apps/web)
 pnpm check
 pnpm check:watch
 pnpm lint
 
 # Generate Cloudflare Worker types
-# (from apps/web)
+pnpm cf-typegen
+```
+
+### Cloudflare Worker Commands (apps/cf)
+
+```bash
+# Development server
+pnpm dev
+
+# Deploy to Cloudflare
+pnpm deploy
+
+# Generate types
 pnpm cf-typegen
 ```
 
 ## Important Files
 
-- `turbo.json`: Defines task dependencies and caching behavior
-- `apps/web/svelte.config.js`: SvelteKit configuration with Cloudflare adapter
-- `apps/web/wrangler.jsonc`: Cloudflare Worker configuration
-- `apps/web/src/worker-configuration.d.ts`: Auto-generated Cloudflare types (do not edit manually)
-- `apps/web/src/app.d.ts`: SvelteKit type definitions with Cloudflare platform interface
+### Configuration Files
 
-## Development Notes
+- `turbo.json` - Turborepo task dependencies and caching
+- `pnpm-workspace.yaml` - Workspace configuration with Effect catalog
+- `apps/web/svelte.config.js` - SvelteKit config with Cloudflare adapter and remote functions
+- `apps/web/vite.config.ts` - Vite config with TailwindCSS v4 and Rolldown
+- `apps/web/wrangler.jsonc` - Cloudflare bindings (Rate Limiters, Service Bindings)
+- `apps/cf/wrangler.jsonc` - Cloudflare Worker config with Durable Objects
 
-- When making changes to Cloudflare Worker configuration, regenerate types with `pnpm cf-typegen`
-- The project uses Svelte 5 and SvelteKit 2
-- TailwindCSS v4 is configured with Vite plugin
-- ESLint and Prettier are configured for code quality
-- The repository is set up as a template for projects using Effect (functional programming library) with SvelteKit
+### Type Definitions
+
+- `apps/web/src/app.d.ts` - SvelteKit type definitions with Cloudflare platform
+- `apps/web/src/worker-configuration.d.ts` - Auto-generated Cloudflare types (do not edit manually)
+
+### Key Source Files
+
+- `packages/rate-limiter/src/index.ts` - Rate limiter Effect wrapper
+- `apps/web/src/lib/chat/` - Chat service layer architecture
+- `apps/cf/src/index.ts` - Cloudflare Worker with Durable Objects
 
 ## Effect Integration Patterns
 
-This project demonstrates excellent patterns for integrating Effect with SvelteKit applications.
+This project demonstrates excellent patterns for integrating Effect with SvelteKit. See `EFFECT_IMPROVEMENTS.md` for detailed architectural explanations.
 
-### SvelteKit + Effect Integration
+### Service Layer Architecture
 
-#### effectQuery Utility (`apps/web/src/lib/effect-query.ts`)
+The chat implementation showcases a clean service layer pattern:
 
-Bridge Effect with SvelteKit's query system:
-
-```typescript
-export const effectQuery = <A, E>(fn: () => Effect.Effect<A, E, never>) => {
-	return query(async () => {
-		return await Effect.runPromise(fn());
-	});
-};
-
-export const effectQueryWithLayer = <A, E, R>(
-	fn: () => Effect.Effect<A, E, R>,
-	layer: Layer.Layer<R>
-) => {
-	return query(async () => {
-		return await Effect.runPromise(Effect.provide(fn(), layer));
-	});
-};
+**File Structure:**
+```
+apps/web/src/lib/chat/
+├── chat-service.ts    # Service tags (Context.Tag definitions)
+├── chat-layers.ts     # Service implementations (Layer definitions)
+├── chat-types.ts      # Types, schemas, and tagged errors
+└── chat-effects.ts    # Higher-level compositions
 ```
 
-**Usage Pattern:**
-- Use `effectQuery` for simple Effect-to-SvelteKit integration
-- Use `effectQueryWithLayer` when you need dependency injection with Effect layers
-- Effects are automatically converted to Promises for SvelteKit compatibility
-
-### Tagged Error Handling
-
-#### Error Type Definition
-
-Define typed errors using `Data.TaggedError`:
-
+**Pattern:**
 ```typescript
-class LoadFailureError extends Data.TaggedError('LoadFailure')<{
-	attempt: number;
-}> {}
+// 1. Define service tags (chat-service.ts)
+export class ChatService extends Context.Tag('ChatService')<
+  ChatService,
+  {
+    readonly connect: (url: string) => Effect.Effect<WebSocket, ConnectionError>;
+    // ... other methods
+  }
+>() {}
 
-class NetworkError extends Data.TaggedError('NetworkError')<{
-	attempt: number;
-	status: number;
-}> {}
+// 2. Implement services (chat-layers.ts)
+export const ChatServiceLive = Layer.effect(
+  ChatService,
+  Effect.gen(function* () {
+    const validation = yield* ValidationService;  // Dependency injection
+    return ChatService.of({
+      connect: (url: string) => Effect.gen(function* () {
+        // Implementation
+      })
+    });
+  })
+);
+
+// 3. Compose layers
+export const ChatAppLive = Layer.provide(ChatServiceLive, ValidationServiceLive);
+
+// 4. Use in code
+const program = Effect.gen(function* () {
+  const chat = yield* ChatService;
+  const socket = yield* chat.connect('ws://...');
+});
+
+Effect.runPromise(Effect.provide(program, ChatAppLive));
 ```
 
-**Benefits:**
-- Type-safe error discrimination with `_tag` field
-- Structured error data with custom properties
-- Composable with Effect's error handling APIs
+### Tagged Errors
 
-#### Multiple Error Handling with catchTags
-
-Use `Effect.catchTags` for elegant multiple error handling:
+Use `Data.TaggedError` for type-safe error handling:
 
 ```typescript
-return randomTask.pipe(
-	Effect.retry(Schedule.recurs(1)),
-	Effect.catchTags({
-		LoadFailure: (error) =>
-			Effect.succeed({
-				attempts: error.attempt,
-				status: 'failed' as const,
-				message: `Load failed after ${error.attempt} attempts`,
-				error: error._tag
-			}),
-		NetworkError: (error) =>
-			Effect.succeed({
-				attempts: error.attempt,
-				status: 'failed' as const,
-				message: `Network error (${error.status}) after ${error.attempt} attempts`,
-				error: error._tag
-			})
-	})
+// Define errors (chat-types.ts, rate-limiter)
+export class ConnectionError extends Data.TaggedError('ConnectionError')<{
+  reason: string;
+  connectionId?: string;
+}> {}
+
+export class RateLimitExceededError extends Data.TaggedError('RateLimitExceeded')<{
+  key: string;
+  limit?: number;
+  period?: number;
+}> {}
+
+// Handle errors with catchTags
+const program = Effect.gen(function* () {
+  yield* checkRateLimit(limiter, key);
+  yield* connectToChat(url);
+}).pipe(
+  Effect.catchTags({
+    RateLimitExceeded: (error) => Effect.succeed({
+      error: `Rate limited: ${error.key}`
+    }),
+    ConnectionError: (error) => Effect.succeed({
+      error: `Connection failed: ${error.reason}`
+    })
+  })
 );
 ```
 
-**Pattern Evolution:**
-1. Start with single `Effect.catchTag` for one error type
-2. Chain multiple `Effect.catchTag` calls for multiple errors
-3. **Best Practice:** Use `Effect.catchTags` with object syntax for multiple errors
+### Effect Streams
 
-### Retry and Error Recovery Patterns
-
-#### Recommended Approach
+For WebSocket message handling, use Effect Streams:
 
 ```typescript
-// 1. Define the fallible operation
-const randomTask = Effect.gen(function* () {
-	attemptCount++;
-	const random = Math.random();
+// Create stream from WebSocket (chat-layers.ts)
+messageStream: (socket: WebSocket): Stream.Stream<Message, MessageError> =>
+  Stream.async<Message, MessageError>((emit) => {
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        const message: Message = JSON.parse(event.data);
+        emit(Effect.succeed(Chunk.of(message)));
+      } catch (error) {
+        emit(Effect.fail(Option.some(new MessageError({ /* ... */ }))));
+      }
+    };
 
-	if (random < 0.33) {
-		return yield* Effect.fail(new LoadFailureError({ attempt: attemptCount }));
-	} else if (random < 0.66) {
-		return yield* Effect.fail(new NetworkError({ attempt: attemptCount, status: 500 }));
-	} else {
-		return { /* success result */ };
-	}
-});
+    socket.addEventListener('message', handleMessage);
 
-// 2. Apply retry logic with error recovery
-return randomTask.pipe(
-	Effect.retry(Schedule.recurs(1)),  // Retry once (2 total attempts)
-	Effect.catchTags({ /* handle all error types */ })
-);
+    return Effect.sync(() => {
+      socket.removeEventListener('message', handleMessage);
+    });
+  })
 ```
 
-**Pattern Comparison:**
-- `retryOrElse`: Good for simple cases, converts failure to success
-- `retry + catchTags`: **Preferred** - more composable and type-safe
-- `retry + match`: Good for uniform handling of success/failure cases
+### Effect.gen Pattern
 
-### Type Safety and Code Organization
-
-#### Shared Types (`apps/web/src/lib/types.ts`)
-
-Define operation result types with error tracking:
+Use `Effect.gen` consistently for composable async operations:
 
 ```typescript
-export type LoadResult = {
-	attempts: number;
-	status: 'success' | 'failed';
-	message: string;
-	error?: string;  // Optional field for error type name
+// Good: Composable, error-typed
+const loadData = Effect.gen(function* () {
+  const user = yield* getUser();
+  const posts = yield* getPosts(user.id);
+  return { user, posts };
+});
+
+// Avoid: Direct Promise usage loses Effect benefits
+const loadData = async () => {
+  const user = await getUser();
+  const posts = await getPosts(user.id);
+  return { user, posts };
 };
 ```
 
-#### Complete Type Flow
+## SvelteKit Remote Functions
 
-```typescript
-// 1. Define the operation with proper types
-export const loadTest = effectQuery<LoadResult, LoadFailureError | NetworkError>(() => {
-	// Effect implementation
-});
+This project uses SvelteKit's experimental remote functions feature for type-safe client-server communication.
 
-// 2. Use in SvelteKit components
-async function load() {
-	loadResult = await loadTest();  // Type: LoadResult
-	if (loadResult.status === 'failed') {
-		console.log(`Failed with ${loadResult.error}`);  // Type-safe error access
-	}
+**Enable in svelte.config.js:**
+```javascript
+kit: {
+  experimental: {
+    remoteFunctions: true
+  }
 }
 ```
 
-**Key Patterns:**
-- Always specify generic types for `effectQuery<Success, Error>`
-- Use union types for multiple error possibilities
-- Include error discriminator field in result types
-- Leverage TypeScript's type narrowing with status checks
+### Three Primitives
 
-### Best Practices Summary
+#### 1. Query - Read Operations
 
-1. **Error Handling**: Use `Data.TaggedError` + `Effect.catchTags` for multiple error types
-2. **Retry Logic**: Prefer `Effect.retry` + error handling over `retryOrElse`
-3. **Type Safety**: Always specify generic types and use union types for errors
-4. **Code Organization**: Share types in `$lib/types.ts`, utilities in `$lib/`
-5. **SvelteKit Integration**: Use `effectQuery` utilities for seamless integration
+```typescript
+// File: routes/load.remote.ts
+import { query } from '$app/server';
+
+export const loadItems = query(v.number(), async (offset) => {
+  // Logic here
+  return { items, hasMore, total, offset };
+});
+
+// Usage in .svelte files
+import { loadItems } from './load.remote';
+const result = await loadItems(0);
+```
+
+#### 2. Command - Write Operations
+
+```typescript
+// File: routes/command.remote.ts
+import { command, getRequestEvent } from '$app/server';
+
+export const commandTest = command(async () => {
+  const { platform } = getRequestEvent();
+
+  const program = Effect.gen(function* () {
+    // Access platform bindings
+    yield* checkRateLimit(platform!.env.MY_RATE_LIMITER, 'key');
+    return { success: true };
+  }).pipe(Effect.catchTags({ /* error handling */ }));
+
+  return await Effect.runPromise(program);
+});
+```
+
+#### 3. Form - Form Actions with Validation
+
+```typescript
+// File: routes/form.remote.ts
+import { form } from '$app/server';
+
+export const formSchema = v.object({
+  name: v.pipe(v.string(), v.minLength(2)),
+  age: v.pipe(v.string(), v.transform(Number), v.number())
+});
+
+export const formTest = form(formSchema, async ({ name, age }) => {
+  // Validated data
+  const program = Effect.gen(function* () {
+    yield* Effect.logInfo(`${name} ${age}`);
+  });
+
+  Effect.runFork(program);
+});
+```
+
+### Effect Integration with Remote Functions
+
+**Pattern:**
+```typescript
+export const myQuery = query(async () => {
+  const program = Effect.gen(function* () {
+    // Effect operations
+    yield* someEffect;
+    return result;
+  }).pipe(
+    Effect.catchTags({ /* handle errors */ })
+  );
+
+  return await Effect.runPromise(program);
+});
+```
+
+## Rate Limiter Package
+
+The `@repo/rate-limiter` package provides Effect-based wrappers for Cloudflare Rate Limiters.
+
+### Installation
+
+```json
+// apps/web/package.json
+{
+  "dependencies": {
+    "@repo/rate-limiter": "workspace:*"
+  }
+}
+```
+
+### Configuration
+
+```jsonc
+// apps/web/wrangler.jsonc
+{
+  "ratelimits": [
+    {
+      "name": "MY_RATE_LIMITER",
+      "namespace_id": "1337",
+      "simple": {
+        "limit": 10,
+        "period": 10
+      }
+    }
+  ]
+}
+```
+
+### Usage
+
+```typescript
+import { checkRateLimit } from '@repo/rate-limiter';
+import { getRequestEvent } from '$app/server';
+
+const { platform } = getRequestEvent();
+
+const program = Effect.gen(function* () {
+  // Returns RateLimitOutcome or fails with typed errors
+  yield* checkRateLimit(platform!.env.MY_RATE_LIMITER, 'user_123');
+
+  // Continue with operation
+  return { success: true };
+}).pipe(
+  Effect.catchTags({
+    RateLimitExceeded: (error) =>
+      Effect.succeed({ error: `Rate limited: ${error.key}` }),
+    RateLimitCheckError: (error) =>
+      Effect.succeed({ error: `Check failed: ${error.reason}` })
+  })
+);
+
+return await Effect.runPromise(program);
+```
+
+### API
+
+**checkRateLimit(limiter, key)**
+- Returns: `Effect.Effect<RateLimitOutcome, RateLimitExceededError | RateLimitCheckError>`
+- Throws `RateLimitExceededError` if rate limit is exceeded
+- Throws `RateLimitCheckError` if check fails (network, binding unavailable, etc.)
+
+## Cloudflare Architecture
+
+### Service Bindings
+
+The web app connects to the Cloudflare Worker via Service Bindings:
+
+```jsonc
+// apps/web/wrangler.jsonc
+{
+  "services": [
+    {
+      "binding": "CF_WORKER",
+      "service": "cf-sk-effect-template-worker",
+      "entrypoint": "CFWorker"
+    }
+  ]
+}
+```
+
+**Usage:**
+```typescript
+import { getRequestEvent } from '$app/server';
+
+const { platform } = getRequestEvent();
+const result = await platform!.env.CF_WORKER.sayHelloFromWorker();
+```
+
+### Durable Objects
+
+The cf worker defines Durable Objects:
+
+```typescript
+// apps/cf/src/index.ts
+export class MyDurableObject extends DurableObject<Env> {
+  async sayHelloFromDO(): Promise<string> {
+    return 'Hello from Durable Object';
+  }
+}
+
+export class ChatRoom extends DurableObject<Env> {
+  private sessions: Map<WebSocket, ChatUser>;
+  // WebSocket chat implementation
+}
+```
+
+**Configuration:**
+```jsonc
+// apps/cf/wrangler.jsonc
+{
+  "durable_objects": {
+    "bindings": [
+      { "class_name": "MyDurableObject", "name": "MY_DURABLE_OBJECT" },
+      { "class_name": "ChatRoom", "name": "CHAT_ROOM" }
+    ]
+  }
+}
+```
+
+### Worker Entrypoints
+
+```typescript
+// apps/cf/src/index.ts
+export class CFWorker extends WorkerEntrypoint<Env> {
+  async sayHelloFromWorker(): Promise<string> {
+    return 'Hello from Worker Entrypoint';
+  }
+
+  async sayHelloFromDO(): Promise<string> {
+    const id = this.env.MY_DURABLE_OBJECT.idFromName('default');
+    const stub = this.env.MY_DURABLE_OBJECT.get(id);
+    return await stub.sayHelloFromDO();
+  }
+}
+
+export default { fetch() { /* ... */ } };
+```
+
+## Valibot Integration
+
+### Schema Definition
+
+```typescript
+// apps/web/src/lib/chat/chat-types.ts
+export const UsernameSchema = v.pipe(
+  v.string('Username must be a string'),
+  v.nonEmpty('Username cannot be empty'),
+  v.maxLength(30, 'Username cannot be longer than 30 characters'),
+  v.regex(/^[a-zA-Z0-9_-]+$/, 'Username can only contain letters, numbers, underscores, and hyphens')
+);
+
+export type Username = v.InferOutput<typeof UsernameSchema>;
+```
+
+### Variant Schemas
+
+```typescript
+export const MessageSchema = v.variant('type', [
+  ChatMessageSchema,
+  UserJoinedMessageSchema,
+  UserLeftMessageSchema,
+  ServerMessageSchema
+]);
+
+export type Message = v.InferOutput<typeof MessageSchema>;
+```
+
+### Integration with Effect
+
+```typescript
+// Wrap validation in Effect
+validateUsername: (username: string): Effect.Effect<string, MessageError> =>
+  Effect.gen(function* () {
+    try {
+      return v.parse(UsernameSchema, username.trim());
+    } catch (error) {
+      return yield* Effect.fail(
+        new MessageError({
+          reason: error instanceof Error ? error.message : 'Validation failed',
+          messageContent: username
+        })
+      );
+    }
+  })
+```
+
+## Type Safety
+
+### Platform Types
+
+```typescript
+// apps/web/src/app.d.ts
+declare global {
+  namespace App {
+    interface Platform {
+      env: Env;         // Cloudflare bindings
+      cf: CfProperties; // Request metadata
+      ctx: ExecutionContext;
+    }
+  }
+}
+```
+
+### Auto-Generated Types
+
+```bash
+# Generate Cloudflare Worker types
+pnpm cf-typegen
+
+# Generated file: apps/web/src/worker-configuration.d.ts
+# Includes types for bindings, Durable Objects, etc.
+```
+
+### Accessing Platform in Remote Functions
+
+```typescript
+import { getRequestEvent } from '$app/server';
+
+export const myQuery = query(async () => {
+  const { platform } = getRequestEvent();
+
+  // Type-safe access to bindings
+  const result = await platform!.env.MY_RATE_LIMITER.limit({ key: 'test' });
+  const colo = platform!.cf.colo;
+
+  return { result, colo };
+});
+```
+
+## WebSocket Chat Architecture
+
+The chat implementation demonstrates a complete client-server architecture with Effect.
+
+### Client Side (apps/web)
+
+**Service Layer:**
+- `ChatService` - WebSocket connection, message streaming
+- `ValidationService` - Username and message validation
+- `ChatAppLive` - Combined layer with all dependencies
+
+**Usage Pattern:**
+```typescript
+import { ChatService, ChatAppLive } from '$lib/chat/chat-layers';
+
+const connectAndJoin = Effect.gen(function* () {
+  const chat = yield* ChatService;
+  const socket = yield* chat.connect('ws://...');
+  yield* chat.joinChat(socket, username);
+  return socket;
+});
+
+const socket = await Effect.runPromise(
+  Effect.provide(connectAndJoin, ChatAppLive)
+);
+```
+
+### Server Side (apps/cf)
+
+**Durable Object ChatRoom:**
+- WebSocket hibernation support
+- Message history (last 50 messages)
+- User session management
+- Broadcast to all connected clients
+
+**Pattern:**
+```typescript
+export class ChatRoom extends DurableObject<Env> {
+  private sessions: Map<WebSocket, ChatUser>;
+
+  async fetch(request: Request): Promise<Response> {
+    if (request.headers.get('Upgrade') === 'websocket') {
+      return this.handleWebSocketUpgrade(request);
+    }
+    // ... REST API endpoints
+  }
+
+  webSocketMessage(ws: WebSocket, message: string) {
+    const clientMessage: ClientMessage = JSON.parse(message);
+    // Handle join_chat, send_message, leave_chat
+  }
+}
+```
+
+## Build Tools
+
+### Rolldown
+
+This project uses Rolldown (Rust-based Vite alternative) for faster builds:
+
+```json
+// Root package.json
+{
+  "pnpm": {
+    "overrides": {
+      "vite": "npm:rolldown-vite@latest"
+    }
+  }
+}
+```
+
+### TailwindCSS v4
+
+```typescript
+// apps/web/vite.config.ts
+import tailwindcss from '@tailwindcss/vite';
+
+export default defineConfig({
+  plugins: [tailwindcss(), sveltekit()]
+});
+```
+
+### Svelte 5 Features
+
+**Async Compiler:**
+```javascript
+// apps/web/svelte.config.js
+compilerOptions: {
+  experimental: {
+    async: true
+  }
+}
+```
+
+**Runes:**
+```svelte
+<script lang="ts">
+  let items = $state<Item[]>([]);
+  let isLoading = $state(false);
+
+  $effect(() => {
+    // Reactive effect
+  });
+</script>
+```
+
+## Development Notes
+
+### Wrangler Type Generation
+
+When updating Cloudflare bindings, regenerate types:
+
+```bash
+# From apps/web
+pnpm cf-typegen
+
+# This reads both wrangler.jsonc files:
+# - apps/web/wrangler.jsonc (web app bindings)
+# - apps/cf/wrangler.jsonc (worker bindings)
+```
+
+### Effect Version Management
+
+Effect version is managed via pnpm catalog:
+
+```yaml
+# pnpm-workspace.yaml
+catalog:
+  effect: ^3.17.14
+```
+
+Use in packages:
+```json
+{
+  "dependencies": {
+    "effect": "catalog:"
+  }
+}
+```
+
+### Non-null Assertions
+
+⚠️ Avoid non-null assertions with platform access. While some examples use `platform!`, prefer proper error handling:
+
+```typescript
+// Better approach
+if (!platform?.env.MY_BINDING) {
+  return yield* Effect.fail(
+    new PlatformError({ reason: 'Platform not available' })
+  );
+}
+
+const result = yield* Effect.tryPromise({
+  try: () => platform.env.MY_BINDING.operation(),
+  catch: (error) => new OperationError({ /* ... */ })
+});
+```
+
+### Resource Management
+
+**When to use `acquireUseRelease`:**
+- Resources acquired, used, and released within a single Effect scope
+- Database connections for single queries
+- File handles for single operations
+
+**When NOT to use:**
+- Resources that outlive the Effect (e.g., WebSockets stored in component state)
+- Resources managed by framework lifecycle (Svelte, React)
+
+**Pattern for Long-Lived Resources:**
+```typescript
+// Effect creates and returns the resource
+const socket = yield* chat.connect(url);
+
+// Component manages lifecycle
+$effect(() => {
+  return () => {
+    Effect.runPromise(chat.disconnect(socket));
+  };
+});
+```
+
+## Key Patterns Summary
+
+### Effect Patterns
+- **Service Pattern**: `Context.Tag` for dependency injection
+- **Layer Pattern**: `Layer.effect` for service implementations
+- **Tagged Errors**: `Data.TaggedError` for type-safe error handling
+- **Effect.gen**: Composable async operations with `yield*`
+- **Streams**: `Stream.async` for event-based data flows
+
+### SvelteKit Patterns
+- **Remote Functions**: Type-safe client-server communication
+- **Platform Access**: `getRequestEvent().platform` for Cloudflare bindings
+- **Experimental Features**: `remoteFunctions`, `async` compiler
+
+### Validation Patterns
+- **Valibot Schemas**: Runtime validation with type inference
+- **Effect Integration**: Wrap validation in Effect for composability
+- **Variant Schemas**: Discriminated unions with `v.variant`
+
+### Cloudflare Patterns
+- **Service Bindings**: Worker-to-worker communication
+- **Durable Objects**: Stateful, strongly consistent objects
+- **Rate Limiters**: Per-key rate limiting with Effect wrapper
+- **WebSocket Hibernation**: Efficient WebSocket handling in DOs
+
+## References
+
+- [Effect Documentation](https://effect.website/)
+- [SvelteKit Documentation](https://svelte.dev/docs/kit)
+- [Cloudflare Workers Documentation](https://developers.cloudflare.com/workers/)
+- [Valibot Documentation](https://valibot.dev/)
+- [EFFECT_IMPROVEMENTS.md](./EFFECT_IMPROVEMENTS.md) - Detailed architecture notes
+
+---
+
+# important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
