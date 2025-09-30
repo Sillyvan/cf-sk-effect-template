@@ -1,4 +1,4 @@
-import { Effect, Context, Layer, Stream } from 'effect';
+import { Effect, Context, Stream } from 'effect';
 import type { Message, ClientMessage } from './chat-types.js';
 import { ConnectionError, MessageError } from './chat-types.js';
 
@@ -28,10 +28,7 @@ export class ChatService extends Context.Tag('ChatService')<
 		/**
 		 * Join a chat room
 		 */
-		readonly joinChat: (
-			socket: WebSocket,
-			username: string
-		) => Effect.Effect<void, MessageError>;
+		readonly joinChat: (socket: WebSocket, username: string) => Effect.Effect<void, MessageError>;
 
 		/**
 		 * Send a chat message

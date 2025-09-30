@@ -4,6 +4,7 @@
 	import { loadItems } from './load.remote';
 	import { commandTest } from './command.remote';
 	import { formTest, formValueTest } from './form.remote';
+	import { formSchema } from '$lib/schemas/form';
 	import type { Item } from '$lib/types';
 
 	// State management for pagination
@@ -151,22 +152,40 @@
 					>{JSON.stringify(await formValueTest(), null, 2)}</code
 				></pre>
 
-			<form {...formTest} class="space-y-4">
+			<form {...formTest.preflight(formSchema)} class="space-y-4">
 				<div>
 					<label class="mb-1 block text-sm font-medium text-gray-700"> Title </label>
+
+					{#if formTest.issues?.name}
+						{#each formTest.issues.name as issue (issue)}
+							<p class="mb-1 text-sm text-red-600">{issue.message}</p>
+						{/each}
+					{/if}
+
 					<input
 						name="name"
-						class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder-gray-400 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
+						class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder-gray-400 focus:border-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none"
+						class:border-red-500={!!formTest.issues?.name}
+						aria-invalid={!!formTest.issues?.name}
 						placeholder="Enter title..."
 					/>
 				</div>
 
 				<div>
 					<label class="mb-1 block text-sm font-medium text-gray-700"> Age </label>
+
+					{#if formTest.issues?.age}
+						{#each formTest.issues.age as issue (issue)}
+							<p class="mb-1 text-sm text-red-600">{issue.message}</p>
+						{/each}
+					{/if}
+
 					<input
 						type="number"
 						name="age"
-						class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder-gray-400 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
+						class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder-gray-400 focus:border-gray-500 focus:ring-1 focus:ring-gray-500 focus:outline-none"
+						class:border-red-500={!!formTest.issues?.age}
+						aria-invalid={!!formTest.issues?.age}
 						placeholder="Enter age..."
 					/>
 				</div>

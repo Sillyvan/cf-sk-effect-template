@@ -6,7 +6,10 @@ export const UsernameSchema = v.pipe(
 	v.string('Username must be a string'),
 	v.nonEmpty('Username cannot be empty'),
 	v.maxLength(30, 'Username cannot be longer than 30 characters'),
-	v.regex(/^[a-zA-Z0-9_-]+$/, 'Username can only contain letters, numbers, underscores, and hyphens')
+	v.regex(
+		/^[a-zA-Z0-9_-]+$/,
+		'Username can only contain letters, numbers, underscores, and hyphens'
+	)
 );
 
 export const MessageContentSchema = v.pipe(

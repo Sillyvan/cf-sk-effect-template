@@ -246,4 +246,3 @@ export const ChatEffects = {
 			}
 		}).pipe(Effect.map((fn) => fn()))
 };
-

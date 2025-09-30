@@ -1,18 +1,6 @@
 import { Effect } from 'effect';
 import { form, query } from '$app/server';
-import * as v from 'valibot';
-
-const formSchema = v.object({
-	name: v.pipe(v.string(), v.minLength(2), v.maxLength(50)),
-	age: v.pipe(
-		v.string(),
-		v.minLength(1),
-		v.transform((input) => Number(input)),
-		v.number(),
-		v.minValue(0),
-		v.maxValue(100)
-	)
-});
+import { formSchema } from '$lib/schemas/form';
 
 const list: { name: string; age: number }[] = [];
 

@@ -135,14 +135,10 @@
 
 	// Auto-scroll to bottom when new messages arrive
 	$effect(() => {
-		// Watch for new messages
-		chatState.messages.length;
-
-		// Only auto-scroll if user is at bottom
-		if (isAtBottom && messagesContainer) {
+		if ((chatState.messages.length, isAtBottom && messagesContainer)) {
 			// Use requestAnimationFrame to ensure DOM has updated
 			requestAnimationFrame(() => {
-				scrollToBottom('smooth');
+				scrollToBottom();
 			});
 		}
 	});
@@ -152,7 +148,7 @@
 		if (chatState.isJoined && messagesContainer) {
 			// Use auto behavior for initial scroll
 			requestAnimationFrame(() => {
-				scrollToBottom('auto');
+				scrollToBottom();
 			});
 		}
 	});
@@ -256,7 +252,7 @@
 		isAtBottom = scrollHeight - scrollTop - clientHeight < threshold;
 	}
 
-	function scrollToBottom(behavior: ScrollBehavior = 'smooth') {
+	function scrollToBottom() {
 		if (!messagesContainer) return;
 		messagesContainer.scrollTop = messagesContainer.scrollHeight;
 	}
