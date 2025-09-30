@@ -19,6 +19,16 @@
 	"observability": {
 		"enabled": true
 	},
+	"ratelimits": [
+		{
+			"name": "MY_RATE_LIMITER",
+			"namespace_id": "1337",
+			"simple": {
+				"limit": 10,
+				"period": 10
+			}
+		}
+	],
 	"services": [
 		{
 			"binding": "CF_WORKER",

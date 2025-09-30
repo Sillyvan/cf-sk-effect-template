@@ -43,6 +43,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@repo/rate-limiter':
+        specifier: workspace:*
+        version: link:../../packages/rate-limiter
       svelte-sonner:
         specifier: ^1.0.5
         version: 1.0.5(svelte@5.39.6)
@@ -116,6 +119,19 @@ importers:
       wrangler:
         specifier: ^4.40.2
         version: 4.40.2(@cloudflare/workers-types@4.20250927.0)
+
+  packages/rate-limiter:
+    dependencies:
+      effect:
+        specifier: 'catalog:'
+        version: 3.17.14
+    devDependencies:
+      '@cloudflare/workers-types':
+        specifier: ^4.20250110.0
+        version: 4.20250927.0
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.2
 
 packages:
 

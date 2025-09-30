@@ -42,6 +42,8 @@
 			toast.error(result.message);
 		}
 	}
+
+	let commandResult = $state<Awaited<ReturnType<typeof commandTest>> | null>(null);
 </script>
 
 <main class="py-6">
@@ -135,13 +137,37 @@
 
 		<!-- Command Section -->
 		<div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-			<h1 class="mb-4 text-lg font-medium text-gray-900">Command</h1>
+			<h1 class="mb-4 text-lg font-medium text-gray-900">Command (Rate Limited)</h1>
 			<button
-				class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800"
-				onclick={() => commandTest()}
+				class="mb-4 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
+				onclick={async () => {
+					commandResult = null;
+					commandResult = await commandTest();
+					if (!commandResult.success) {
+						toast.error(commandResult.message);
+					}
+				}}
 			>
 				Execute Command
 			</button>
+
+			<p class="mb-3 text-sm font-medium text-gray-700">Result:</p>
+			{#if commandResult}
+				<pre
+					class="overflow-auto rounded-lg border p-4 text-xs"
+					class:bg-green-50={commandResult.success}
+					class:border-green-200={commandResult.success}
+					class:text-green-800={commandResult.success}
+					class:bg-red-50={!commandResult.success}
+					class:border-red-200={!commandResult.success}
+					class:text-red-800={!commandResult.success}><code
+						>{JSON.stringify(commandResult, null, 2)}</code
+					></pre>
+			{:else}
+				<div class="rounded-lg border bg-gray-50 p-4 text-center text-sm text-gray-500">
+					Click "Execute Command" to test rate limiting
+				</div>
+			{/if}
 		</div>
 
 		<!-- Form Section -->
@@ -154,7 +180,7 @@
 
 			<form {...formTest.preflight(formSchema)} class="space-y-4">
 				<div>
-					<label class="mb-1 block text-sm font-medium text-gray-700"> Title </label>
+					<label class="mb-1 block text-sm font-medium text-gray-700" for="name"> Title </label>
 
 					{#if formTest.issues?.name}
 						{#each formTest.issues.name as issue (issue)}
@@ -172,7 +198,7 @@
 				</div>
 
 				<div>
-					<label class="mb-1 block text-sm font-medium text-gray-700"> Age </label>
+					<label class="mb-1 block text-sm font-medium text-gray-700" for="age"> Age </label>
 
 					{#if formTest.issues?.age}
 						{#each formTest.issues.age as issue (issue)}
