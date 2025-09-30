@@ -1,108 +1,106 @@
-import { Data } from 'effect';
-import * as v from 'valibot';
+import { Data, Schema } from 'effect';
 
 // Validation Schemas
-export const UsernameSchema = v.pipe(
-	v.string('Username must be a string'),
-	v.nonEmpty('Username cannot be empty'),
-	v.maxLength(30, 'Username cannot be longer than 30 characters'),
-	v.regex(
-		/^[a-zA-Z0-9_-]+$/,
-		'Username can only contain letters, numbers, underscores, and hyphens'
-	)
-);
+export const UsernameSchema = Schema.String.pipe(
+	Schema.nonEmptyString(),
+	Schema.maxLength(30),
+	Schema.pattern(/^[a-zA-Z0-9_-]+$/)
+).annotations({
+	identifier: 'Username',
+	message: () => ({
+		message: 'Username can only contain letters, numbers, underscores, and hyphens',
+		override: true
+	})
+});
 
-export const MessageContentSchema = v.pipe(
-	v.string('Message must be a string'),
-	v.nonEmpty('Message cannot be empty'),
-	v.maxLength(500, 'Message cannot be longer than 500 characters')
-);
+export const MessageContentSchema = Schema.String.pipe(
+	Schema.nonEmptyString(),
+	Schema.maxLength(500)
+).annotations({
+	identifier: 'MessageContent'
+});
 
 // Message Schemas
-export const ChatMessageSchema = v.object({
-	id: v.string(),
-	content: v.string(),
-	username: v.string(),
-	timestamp: v.number(),
-	type: v.literal('message')
+export const ChatMessageSchema = Schema.Struct({
+	id: Schema.String,
+	content: Schema.String,
+	username: Schema.String,
+	timestamp: Schema.Number,
+	type: Schema.Literal('message')
 });
 
-export const UserJoinedMessageSchema = v.object({
-	id: v.string(),
-	username: v.string(),
-	timestamp: v.number(),
-	type: v.literal('user_joined')
+export const UserJoinedMessageSchema = Schema.Struct({
+	id: Schema.String,
+	username: Schema.String,
+	timestamp: Schema.Number,
+	type: Schema.Literal('user_joined')
 });
 
-export const UserLeftMessageSchema = v.object({
-	id: v.string(),
-	username: v.string(),
-	timestamp: v.number(),
-	type: v.literal('user_left')
+export const UserLeftMessageSchema = Schema.Struct({
+	id: Schema.String,
+	username: Schema.String,
+	timestamp: Schema.Number,
+	type: Schema.Literal('user_left')
 });
 
-export const ServerMessageSchema = v.object({
-	id: v.string(),
-	content: v.string(),
-	timestamp: v.number(),
-	type: v.literal('server')
+export const ServerMessageSchema = Schema.Struct({
+	id: Schema.String,
+	content: Schema.String,
+	timestamp: Schema.Number,
+	type: Schema.Literal('server')
 });
 
-export const MessageSchema = v.variant('type', [
+export const MessageSchema = Schema.Union(
 	ChatMessageSchema,
 	UserJoinedMessageSchema,
 	UserLeftMessageSchema,
 	ServerMessageSchema
-]);
+);
 
 // Client-to-Server Message Schemas
-export const SendMessageSchema = v.object({
-	type: v.literal('send_message'),
+export const SendMessageSchema = Schema.Struct({
+	type: Schema.Literal('send_message'),
 	content: MessageContentSchema
 });
 
-export const JoinChatSchema = v.object({
-	type: v.literal('join_chat'),
+export const JoinChatSchema = Schema.Struct({
+	type: Schema.Literal('join_chat'),
 	username: UsernameSchema
 });
 
-export const LeaveChatSchema = v.object({
-	type: v.literal('leave_chat')
+export const LeaveChatSchema = Schema.Struct({
+	type: Schema.Literal('leave_chat')
 });
 
-export const ClientMessageSchema = v.variant('type', [
-	SendMessageSchema,
-	JoinChatSchema,
-	LeaveChatSchema
-]);
+export const ClientMessageSchema = Schema.Union(SendMessageSchema, JoinChatSchema, LeaveChatSchema);
 
 // Connection State Schemas
-export const ChatUserSchema = v.object({
-	username: v.string(),
-	connectionId: v.string(),
-	joinedAt: v.number()
+export const ChatUserSchema = Schema.Struct({
+	username: Schema.String,
+	connectionId: Schema.String,
+	joinedAt: Schema.Number
 });
 
-export const ChatConnectionResultSchema = v.object({
-	success: v.boolean(),
-	connectionId: v.optional(v.string()),
-	error: v.optional(v.string())
+export const ChatConnectionResultSchema = Schema.Struct({
+	success: Schema.Boolean,
+	connectionId: Schema.optional(Schema.String),
+	error: Schema.optional(Schema.String)
 });
 
 // Inferred Types
-export type Username = v.InferOutput<typeof UsernameSchema>;
-export type MessageContent = v.InferOutput<typeof MessageContentSchema>;
-export type ChatMessage = v.InferOutput<typeof ChatMessageSchema>;
-export type UserJoinedMessage = v.InferOutput<typeof UserJoinedMessageSchema>;
-export type UserLeftMessage = v.InferOutput<typeof UserLeftMessageSchema>;
-export type ServerMessage = v.InferOutput<typeof ServerMessageSchema>;
-export type Message = v.InferOutput<typeof MessageSchema>;
-export type SendMessage = v.InferOutput<typeof SendMessageSchema>;
-export type JoinChat = v.InferOutput<typeof JoinChatSchema>;
-export type LeaveChat = v.InferOutput<typeof LeaveChatSchema>;
-export type ClientMessage = v.InferOutput<typeof ClientMessageSchema>;
-export type ChatUser = v.InferOutput<typeof ChatUserSchema>;
-export type ChatConnectionResult = v.InferOutput<typeof ChatConnectionResultSchema>;
+export type Username = Schema.Schema.Type<typeof UsernameSchema>;
+export type MessageContent = Schema.Schema.Type<typeof MessageContentSchema>;
+export type ChatMessage = Schema.Schema.Type<typeof ChatMessageSchema>;
+export type UserJoinedMessage = Schema.Schema.Type<typeof UserJoinedMessageSchema>;
+export type UserLeftMessage = Schema.Schema.Type<typeof UserLeftMessageSchema>;
+export type ServerMessage = Schema.Schema.Type<typeof ServerMessageSchema>;
+export type Message = Schema.Schema.Type<typeof MessageSchema>;
+export type SendMessage = Schema.Schema.Type<typeof SendMessageSchema>;
+export type JoinChat = Schema.Schema.Type<typeof JoinChatSchema>;
+export type LeaveChat = Schema.Schema.Type<typeof LeaveChatSchema>;
+export type ClientMessage = Schema.Schema.Type<typeof ClientMessageSchema>;
+export type ChatUser = Schema.Schema.Type<typeof ChatUserSchema>;
+export type ChatConnectionResult = Schema.Schema.Type<typeof ChatConnectionResultSchema>;
 
 // Chat Room State (keeping Map-based for WebSocket keys)
 export interface ChatRoomState {

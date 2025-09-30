@@ -9,7 +9,7 @@ A production-ready template for building type-safe, composable applications usin
 - **Cloudflare Workers & Durable Objects** for serverless backend
 - **Rate limiting** with Effect-based wrapper around Cloudflare Rate Limiters
 - **WebSocket chat** demonstrating real-time communication with Durable Objects
-- **Runtime validation** using Valibot schemas
+- **Runtime validation** using Effect Schema with native Effect integration
 - **TailwindCSS v4** with Rolldown for fast builds
 - **Turborepo monorepo** with pnpm workspaces
 
@@ -17,7 +17,7 @@ A production-ready template for building type-safe, composable applications usin
 
 - **Frontend**: SvelteKit 5 with Cloudflare Workers
 - **Backend**: Cloudflare Workers with Durable Objects
-- **Validation**: Valibot for runtime type validation
+- **Validation**: Effect Schema for runtime validation and transformations
 - **FP Library**: Effect.ts v3 for composable, type-safe error handling
 - **Build Tool**: Rolldown (Rust-based Vite alternative)
 - **Styling**: TailwindCSS v4

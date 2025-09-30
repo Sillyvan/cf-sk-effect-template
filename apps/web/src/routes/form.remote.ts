@@ -1,4 +1,4 @@
-import { Effect } from 'effect';
+import { Effect, Schema } from 'effect';
 import { form, query } from '$app/server';
 import { formSchema } from '$lib/schemas/form';
 
@@ -8,7 +8,7 @@ export const formValueTest = query(() => {
 	return list;
 });
 
-export const formTest = form(formSchema, async ({ name, age }) => {
+export const formTest = form(Schema.standardSchemaV1(formSchema), async ({ name, age }) => {
 	const program = Effect.gen(function* () {
 		yield* Effect.logInfo(`${name} ${age}`);
 		list.push({ name, age });

@@ -1,13 +1,6 @@
-import * as v from 'valibot';
+import { Schema } from 'effect';
 
-export const formSchema = v.object({
-	name: v.pipe(v.string(), v.minLength(2), v.maxLength(50)),
-	age: v.pipe(
-		v.string(),
-		v.minLength(1),
-		v.transform((input) => Number(input)),
-		v.number(),
-		v.minValue(0),
-		v.maxValue(100)
-	)
+export const formSchema = Schema.Struct({
+	name: Schema.String.pipe(Schema.minLength(2), Schema.maxLength(50)),
+	age: Schema.NumberFromString.pipe(Schema.greaterThanOrEqualTo(0), Schema.lessThanOrEqualTo(100))
 });

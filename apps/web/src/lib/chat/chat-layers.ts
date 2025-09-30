@@ -1,5 +1,4 @@
-import { Effect, Layer, Stream, Chunk, Option } from 'effect';
-import * as v from 'valibot';
+import { Effect, Layer, Stream, Chunk, Option, Schema } from 'effect';
 import { ChatService, ValidationService } from './chat-service.js';
 import type { Message, ClientMessage } from './chat-types.js';
 import {
@@ -10,38 +9,32 @@ import {
 } from './chat-types.js';
 
 /**
- * Live implementation of ValidationService using Valibot
+ * Live implementation of ValidationService using Effect Schema
  */
 export const ValidationServiceLive = Layer.succeed(
 	ValidationService,
 	ValidationService.of({
 		validateUsername: (username: string): Effect.Effect<string, MessageError> =>
-			Effect.gen(function* () {
-				try {
-					return v.parse(UsernameSchema, username.trim());
-				} catch (error) {
-					return yield* Effect.fail(
+			Schema.decode(UsernameSchema)(username.trim()).pipe(
+				Effect.mapError(
+					(error) =>
 						new MessageError({
-							reason: error instanceof Error ? error.message : 'Username validation failed',
+							reason: error.message,
 							messageContent: username
 						})
-					);
-				}
-			}),
+				)
+			),
 
 		validateMessage: (content: string): Effect.Effect<string, MessageError> =>
-			Effect.gen(function* () {
-				try {
-					return v.parse(MessageContentSchema, content.trim());
-				} catch (error) {
-					return yield* Effect.fail(
+			Schema.decode(MessageContentSchema)(content.trim()).pipe(
+				Effect.mapError(
+					(error) =>
 						new MessageError({
-							reason: error instanceof Error ? error.message : 'Message validation failed',
+							reason: error.message,
 							messageContent: content
 						})
-					);
-				}
-			})
+				)
+			)
 	})
 );
 

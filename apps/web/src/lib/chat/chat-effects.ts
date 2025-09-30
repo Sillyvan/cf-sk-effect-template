@@ -1,5 +1,4 @@
-import { Effect, Stream, Chunk, Option } from 'effect';
-import * as v from 'valibot';
+import { Effect, Stream, Chunk, Option, Schema } from 'effect';
 import type { Message, ClientMessage } from './chat-types.js';
 import {
 	UsernameSchema,
@@ -151,38 +150,32 @@ export const ChatEffects = {
 			}),
 
 	/**
-	 * Validates username using Valibot schema
+	 * Validates username using Effect Schema
 	 */
 	validateUsername: (username: string): Effect.Effect<string, MessageError> =>
-		Effect.gen(function* () {
-			try {
-				return v.parse(UsernameSchema, username.trim());
-			} catch (error) {
-				return yield* Effect.fail(
+		Schema.decode(UsernameSchema)(username.trim()).pipe(
+			Effect.mapError(
+				(error) =>
 					new MessageError({
-						reason: error instanceof Error ? error.message : 'Username validation failed',
+						reason: error.message,
 						messageContent: username
 					})
-				);
-			}
-		}),
+			)
+		),
 
 	/**
-	 * Validates message content using Valibot schema
+	 * Validates message content using Effect Schema
 	 */
 	validateMessage: (content: string): Effect.Effect<string, MessageError> =>
-		Effect.gen(function* () {
-			try {
-				return v.parse(MessageContentSchema, content.trim());
-			} catch (error) {
-				return yield* Effect.fail(
+		Schema.decode(MessageContentSchema)(content.trim()).pipe(
+			Effect.mapError(
+				(error) =>
 					new MessageError({
-						reason: error instanceof Error ? error.message : 'Message validation failed',
+						reason: error.message,
 						messageContent: content
 					})
-				);
-			}
-		}),
+			)
+		),
 
 	/**
 	 * Joins a chat room

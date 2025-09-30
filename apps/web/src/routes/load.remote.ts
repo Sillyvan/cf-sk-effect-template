@@ -1,6 +1,6 @@
 import { query } from '$app/server';
 import type { Item } from '$lib/types';
-import * as v from 'valibot';
+import { Schema } from 'effect';
 
 const TOTAL_ITEMS = 6;
 const ITEMS_PER_PAGE = 2;
@@ -11,7 +11,7 @@ const mockItems: Item[] = Array.from({ length: TOTAL_ITEMS }, (_, i) => ({
 	description: `Description for item ${i + 1}`
 }));
 
-export const loadItems = query(v.number(), async (offset) => {
+export const loadItems = query(Schema.standardSchemaV1(Schema.Number), async (offset) => {
 	const startIndex = offset;
 	const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, TOTAL_ITEMS);
 	const items = mockItems.slice(startIndex, endIndex);

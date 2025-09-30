@@ -3,11 +3,11 @@
 // Runtime types generated with workerd@1.20250924.0 2025-09-27 nodejs_als
 declare namespace Cloudflare {
 	interface GlobalProps {
-		mainModule: typeof import("../.svelte-kit/cloudflare/_worker");
+		mainModule: typeof import('../.svelte-kit/cloudflare/_worker');
 	}
 	interface Env {
 		MY_RATE_LIMITER: RateLimit;
-		CF_WORKER: Service<typeof import("../../cf/src/index").CFWorker>;
+		CF_WORKER: Service<typeof import('../../cf/src/index').CFWorker>;
 		ASSETS: Fetcher;
 	}
 }

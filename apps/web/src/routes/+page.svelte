@@ -6,6 +6,7 @@
 	import { formTest, formValueTest } from './form.remote';
 	import { formSchema } from '$lib/schemas/form';
 	import type { Item } from '$lib/types';
+	import { Schema } from 'effect';
 
 	// State management for pagination
 	let items = $state<Item[]>([]);
@@ -178,7 +179,7 @@
 					>{JSON.stringify(await formValueTest(), null, 2)}</code
 				></pre>
 
-			<form {...formTest.preflight(formSchema)} class="space-y-4">
+			<form {...formTest.preflight(Schema.standardSchemaV1(formSchema))} class="space-y-4">
 				<div>
 					<label class="mb-1 block text-sm font-medium text-gray-700" for="name"> Title </label>
 

@@ -9,7 +9,7 @@ This is a **Cloudflare + SvelteKit + Effect.ts template** built on Turborepo. It
 - **SvelteKit** with Cloudflare Pages adapter
 - **Effect.ts** for functional, composable error handling and dependency injection
 - **Cloudflare Workers & Durable Objects** for backend services
-- **Valibot** for runtime validation
+- **Effect Schema** for runtime validation and transformations
 - **SvelteKit Remote Functions** for type-safe client-server communication
 
 ## Project Structure
@@ -44,7 +44,7 @@ This is a Turborepo monorepo with:
 - **Monorepo**: Turborepo for task orchestration
 - **Build Tool**: Rolldown (via `rolldown-vite`)
 - **Styling**: TailwindCSS v4
-- **Runtime Validation**: Valibot
+- **Runtime Validation**: Effect Schema
 - **Effect Version**: Managed via pnpm catalog (v3.17.14)
 
 ## Development Commands
@@ -491,52 +491,73 @@ export class CFWorker extends WorkerEntrypoint<Env> {
 export default { fetch() { /* ... */ } };
 ```
 
-## Valibot Integration
+## Effect Schema Integration
+
+Effect Schema provides runtime validation, transformations, and type inference fully integrated with the Effect ecosystem.
 
 ### Schema Definition
 
 ```typescript
 // apps/web/src/lib/chat/chat-types.ts
-export const UsernameSchema = v.pipe(
-  v.string('Username must be a string'),
-  v.nonEmpty('Username cannot be empty'),
-  v.maxLength(30, 'Username cannot be longer than 30 characters'),
-  v.regex(/^[a-zA-Z0-9_-]+$/, 'Username can only contain letters, numbers, underscores, and hyphens')
-);
+import { Schema } from 'effect';
 
-export type Username = v.InferOutput<typeof UsernameSchema>;
+export const UsernameSchema = Schema.String.pipe(
+  Schema.nonEmptyString(),
+  Schema.maxLength(30),
+  Schema.pattern(/^[a-zA-Z0-9_-]+$/)
+).annotations({
+  identifier: 'Username',
+  message: () => ({
+    message: 'Username can only contain letters, numbers, underscores, and hyphens',
+    override: true
+  })
+});
+
+export type Username = Schema.Schema.Type<typeof UsernameSchema>;
 ```
 
-### Variant Schemas
+### Discriminated Union Schemas
 
 ```typescript
-export const MessageSchema = v.variant('type', [
+export const MessageSchema = Schema.Union(
   ChatMessageSchema,
   UserJoinedMessageSchema,
   UserLeftMessageSchema,
   ServerMessageSchema
-]);
+);
 
-export type Message = v.InferOutput<typeof MessageSchema>;
+export type Message = Schema.Schema.Type<typeof MessageSchema>;
 ```
 
-### Integration with Effect
+### Native Effect Integration
+
+Effect Schema returns `Effect` directly, eliminating try/catch blocks:
 
 ```typescript
-// Wrap validation in Effect
+// Validation returns Effect natively
 validateUsername: (username: string): Effect.Effect<string, MessageError> =>
-  Effect.gen(function* () {
-    try {
-      return v.parse(UsernameSchema, username.trim());
-    } catch (error) {
-      return yield* Effect.fail(
+  Schema.decode(UsernameSchema)(username.trim()).pipe(
+    Effect.mapError(
+      (error) =>
         new MessageError({
-          reason: error instanceof Error ? error.message : 'Validation failed',
+          reason: error.message,
           messageContent: username
         })
-      );
-    }
-  })
+    )
+  )
+```
+
+### Built-in Transformations
+
+```typescript
+// Form schema with string-to-number transformation
+export const formSchema = Schema.Struct({
+  name: Schema.String.pipe(Schema.minLength(2), Schema.maxLength(50)),
+  age: Schema.NumberFromString.pipe(
+    Schema.greaterThanOrEqualTo(0),
+    Schema.lessThanOrEqualTo(100)
+  )
+});
 ```
 
 ## Type Safety
@@ -779,9 +800,10 @@ $effect(() => {
 - **Experimental Features**: `remoteFunctions`, `async` compiler
 
 ### Validation Patterns
-- **Valibot Schemas**: Runtime validation with type inference
-- **Effect Integration**: Wrap validation in Effect for composability
-- **Variant Schemas**: Discriminated unions with `v.variant`
+- **Effect Schema**: Runtime validation with native Effect integration
+- **Built-in Transformations**: `NumberFromString`, `DateFromString`, etc.
+- **Discriminated Unions**: Type-safe unions with `Schema.Union`
+- **Filters & Annotations**: Custom validation with detailed error messages
 
 ### Cloudflare Patterns
 - **Service Bindings**: Worker-to-worker communication
@@ -792,9 +814,9 @@ $effect(() => {
 ## References
 
 - [Effect Documentation](https://effect.website/)
+- [Effect Schema Documentation](https://effect.website/docs/schema/introduction)
 - [SvelteKit Documentation](https://svelte.dev/docs/kit)
 - [Cloudflare Workers Documentation](https://developers.cloudflare.com/workers/)
-- [Valibot Documentation](https://valibot.dev/)
 - [EFFECT_IMPROVEMENTS.md](./EFFECT_IMPROVEMENTS.md) - Detailed architecture notes
 
 ---

@@ -41,7 +41,6 @@
 	},
 	"dependencies": {
 		"@repo/rate-limiter": "workspace:*",
-		"svelte-sonner": "^1.0.5",
-		"valibot": "^1.1.0"
+		"svelte-sonner": "^1.0.5"
 	}
 }

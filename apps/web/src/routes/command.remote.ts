@@ -6,7 +6,7 @@ export const commandTest = command(async () => {
 	const { platform } = getRequestEvent();
 
 	const program = Effect.gen(function* () {
-		console.log(platform!.cf)
+		console.log(platform!.cf);
 		yield* checkRateLimit(platform!.env.MY_RATE_LIMITER, 'command_test');
 		yield* Effect.logInfo(platform!.cf.colo, 'command_test');
 
